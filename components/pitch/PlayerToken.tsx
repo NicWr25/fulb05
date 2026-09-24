@@ -57,7 +57,7 @@ export function PlayerToken({
         mine ? "bg-gold text-ink" : "bg-tag text-white",
       )}
     >
-      {mine ? "Vos" : playerName}
+      {mine ? `Vos · ${playerName}` : playerName}
     </span>
   );
 

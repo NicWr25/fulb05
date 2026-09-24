@@ -6,14 +6,20 @@ import { TEAM_LABEL, type Team } from "@/lib/domain/teams";
 import { LIMITS } from "@/lib/domain/validation";
 import { cx } from "@/lib/cx";
 
-export function QuickAddBar({ name, onName, nameError, team, onTeam, hint, error,
-  placeholder, submitLabel, busy, disabled, onSubmit, footer,
+export function QuickAddBar({ name, onName, nameError, alias, onAlias, aliasError, showAlias,
+  team, onTeam, teamDisabled, hint, error, placeholder, submitLabel, busy,
+  disabled, onSubmit, footer,
 }: {
   name: string;
   onName: (value: string) => void;
   nameError?: string | null;
+  alias?: string;
+  onAlias?: (value: string) => void;
+  aliasError?: string | null;
+  showAlias?: boolean;
   team: Team;
   onTeam: (team: Team) => void;
+  teamDisabled?: (team: Team) => boolean;
   hint: string;
   error?: string | null;
   placeholder: string;
@@ -24,7 +30,7 @@ export function QuickAddBar({ name, onName, nameError, team, onTeam, hint, error
   footer?: ReactNode;
 }) {
   const id = useId();
-  const message = nameError ?? error ?? hint;
+  const message = nameError ?? aliasError ?? error ?? hint;
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -55,11 +61,20 @@ export function QuickAddBar({ name, onName, nameError, team, onTeam, hint, error
             {busy ? "Guardando…" : submitLabel}
           </button>
         </div>
+        {showAlias && onAlias && <div className="flex flex-col gap-1">
+          <label htmlFor={`${id}-alias`} className="text-13 font-semibold">Alias en la cancha (opcional)</label>
+          <input id={`${id}-alias`} value={alias ?? ""} maxLength={LIMITS.alias}
+            onChange={(event) => onAlias(event.target.value)} aria-invalid={Boolean(aliasError)}
+            aria-describedby={`${id}-message`} placeholder="Ej.: Juani 2"
+            className={cx("h-11 rounded-field bg-field px-3.5 text-16 text-ink",
+              aliasError ? "border-2 border-danger" : "border border-line-strong")}
+          />
+        </div>}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <div role="group" aria-label="Equipo" className="flex shrink-0 gap-1">
             {(["A", "B"] as const).map((value) => (
               <button key={value} type="button" aria-pressed={team === value}
-                onClick={() => onTeam(value)} disabled={disabled || busy}
+                onClick={() => onTeam(value)} disabled={busy || teamDisabled?.(value)}
                 className={cx(
                   "flex min-h-11 items-center gap-1.5 rounded-btn border px-2.5 text-13 font-semibold",
                   team === value ? "border-ink bg-cream text-ink" : "border-line-strong bg-surface text-ink-2",

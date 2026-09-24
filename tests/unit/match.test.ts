@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { missingCount, missingLabel, slotsByTeam, type Player } from "@/lib/domain/match";
+import { hasNameInTeam, missingCount, missingLabel, playerDisplayName, slotsByTeam, type Player } from "@/lib/domain/match";
 import { inviteMessage, matchTitle, whatsappUrl } from "@/lib/domain/share";
 
 const p = (id: string, team: "A" | "B", slot: number): Player => ({ id, name: id, team, slot });
@@ -21,6 +21,28 @@ describe("match", () => {
     expect(missingLabel(0)).toBe("¡Equipos completos!");
     expect(missingLabel(1)).toBe("Falta 1 jugador");
     expect(missingLabel(3)).toBe("Faltan 3 jugadores");
+  });
+
+  it("distingue nombres repetidos por equipo y lugar, también si ya existían", () => {
+    const players: Player[] = [
+      { id: "1", name: "Jugador QA 1", team: "A", slot: 1 },
+      { id: "2", name: "jugador  qa 1", team: "A", slot: 4 },
+      { id: "3", name: "Jugador QA 1", team: "B", slot: 0 },
+    ];
+    expect(playerDisplayName(players[0], players)).toBe("2 · Jugador QA 1");
+    expect(playerDisplayName(players[1], players)).toBe("5 · jugador  qa 1");
+    expect(playerDisplayName(players[2], players)).toBe("Jugador QA 1");
+    expect(hasNameInTeam("JUGADOR QA 1", "A", players)).toBe(true);
+    expect(hasNameInTeam("JUGADOR QA 1", "B", players)).toBe(true);
+  });
+
+  it("muestra alias y numera también alias repetidos", () => {
+    const players: Player[] = [
+      { id: "1", name: "Juan", alias: "Juani", team: "A", slot: 0 },
+      { id: "2", name: "Pedro", alias: "Juani", team: "A", slot: 3 },
+    ];
+    expect(playerDisplayName(players[0], players)).toBe("1 · Juani");
+    expect(playerDisplayName(players[1], players)).toBe("4 · Juani");
   });
 });
 

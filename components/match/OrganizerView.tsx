@@ -7,6 +7,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { StatBox } from "@/components/ui/StatBox";
 import { EditIcon } from "@/components/ui/icons";
 import { QuickAddBar } from "./QuickAddBar";
+import { AliasEditor } from "./AliasEditor";
 import { useEditMatchDialog } from "./EditMatchDialog";
 import { MatchHeader } from "./MatchHeader";
 import { MatchLayout } from "./MatchLayout";
@@ -16,11 +17,11 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 import type { MatchState } from "@/lib/hooks/useMatch";
 import { formatMatchDate, toLocalInputs } from "@/lib/domain/datetime";
 import { errorMessage } from "@/lib/domain/errors";
-import { missingCount, missingLabel, slotsByTeam, type Player } from "@/lib/domain/match";
+import { hasNameInTeam, missingCount, missingLabel, slotsByTeam, type Player } from "@/lib/domain/match";
 import { type Point } from "@/lib/domain/positions";
 import { matchTitle } from "@/lib/domain/share";
 import { TEAM_IN, TEAM_LABEL, type Format, type Team } from "@/lib/domain/teams";
-import { playerNameError } from "@/lib/domain/validation";
+import { playerAliasError, playerNameError } from "@/lib/domain/validation";
 
 type AnyError = Parameters<typeof errorMessage>[0];
 
@@ -38,6 +39,9 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
   const { match, me, status, reload } = state;
   const [selected, setSelected] = useState<SlotRef | null>(null);
   const [name, setName] = useState("");
+  const [alias, setAlias] = useState("");
+  const [editedAlias, setEditedAlias] = useState("");
+  const [editingAlias, setEditingAlias] = useState<string | null>(null);
   const [team, setTeam] = useState<Team>("A");
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -51,6 +55,7 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
   const occupant = current ? slots[current.team][current.slot] : null;
   const teamFull = (t: Team) => slots[t].every(Boolean);
   const targetTeam = current ? current.team : team;
+  const duplicateName = hasNameInTeam(name, targetTeam, match.players);
 
   /** Datos actuales del partido en el formato que espera update_match. */
   function details() {
@@ -113,15 +118,25 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
 
   async function addPlayer() {
     setTried(true);
-    if (playerNameError(name)) return;
+    if (playerNameError(name) || playerAliasError(alias)) return;
     const ok = await run(() =>
-      sb.from("match_players").insert({ match_id: match.id, user_id: null, name: name.trim(), ...target() }),
+      sb.from("match_players").insert({ match_id: match.id, user_id: null, name: name.trim(),
+        alias: alias.trim() || null, ...target() }),
     );
     if (ok) {
       setName("");
+      setAlias("");
       setTried(false);
       setSelected(null);
     }
+  }
+
+  async function saveAlias(player: Player) {
+    if (playerAliasError(editedAlias)) return;
+    const ok = await run(() => sb.rpc("set_player_alias", {
+      p_match_id: match.id, p_player_id: player.id, p_alias: editedAlias.trim(),
+    }));
+    if (ok) setEditingAlias(null);
   }
 
   async function remove(p: Player) {
@@ -198,9 +213,14 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
       name={name}
       onName={(value) => { setName(value); setError(null); }}
       nameError={tried ? playerNameError(name) : null}
+      alias={alias}
+      onAlias={(value) => { setAlias(value); setError(null); }}
+      aliasError={tried ? playerAliasError(alias) : null}
+      showAlias={duplicateName || Boolean(alias)}
       team={targetTeam}
       onTeam={chooseTeam}
-      hint={hint}
+      teamDisabled={(value) => !ready || teamFull(value)}
+      hint={duplicateName ? "Ya hay alguien con ese nombre en el equipo. Podés usar un alias; si no, se verá el número del lugar." : hint}
       error={error}
       placeholder="Nombre del jugador"
       submitLabel={!ready ? "Conectando…" : "+ Agregar"}
@@ -267,8 +287,14 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
             {current && occupant && !closed && <div className="flex flex-wrap items-center gap-2 rounded-panel border border-line bg-surface p-2.5 text-13">
               <span className="min-w-0 flex-1 font-semibold">{occupant.name}</span>
               <button type="button" onClick={() => { setMoving(occupant); setSelected(null); }} className="min-h-11 rounded-btn border border-line-strong px-3 font-semibold">Cambiar lugar</button>
+              {(occupant.user_id == null || occupant.id === me?.id) &&
+                <button type="button" onClick={() => { setEditedAlias(occupant.alias ?? ""); setEditingAlias(occupant.id); }}
+                  className="min-h-11 rounded-btn border border-line-strong px-3 font-semibold">Editar alias</button>}
               {occupant.id !== me?.id && <button type="button" onClick={() => remove(occupant)} disabled={busy} className="min-h-11 rounded-btn border border-line-strong px-3 font-semibold text-danger">Sacar</button>}
             </div>}
+            {current && occupant && editingAlias === occupant.id &&
+              <AliasEditor value={editedAlias} onChange={setEditedAlias} onSave={() => saveAlias(occupant)}
+                onCancel={() => setEditingAlias(null)} busy={busy} error={playerAliasError(editedAlias) ?? error} />}
             {moving && <div className="flex items-center gap-2 rounded-panel border border-line bg-surface p-2.5 text-13">
               <p className="flex-1">Tocá un lugar libre para mover a {moving.name}.</p>
               <button type="button" onClick={() => setMoving(null)} className="min-h-11 px-2 font-semibold">Cancelar</button>

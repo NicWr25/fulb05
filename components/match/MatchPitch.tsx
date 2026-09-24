@@ -3,7 +3,7 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { Pitch, PitchSpot } from "@/components/pitch/Pitch";
 import { PlayerToken } from "@/components/pitch/PlayerToken";
-import { slotsByTeam, type Match, type Player } from "@/lib/domain/match";
+import { playerDisplayName, slotsByTeam, type Match, type Player } from "@/lib/domain/match";
 import {
   clampPercent,
   clampToHalf,
@@ -162,15 +162,16 @@ export function MatchPitch({
           const selectable = canSelect(ref, player);
           const isSelected = same(selected, ref);
           const isDragging = same(dragging, ref);
-          const who = player ? `${mine ? "Vos" : player.name} en ${TEAM_IN[team]}` : `Lugar ${slot + 1} libre en ${TEAM_IN[team]}`;
+          const displayName = player ? playerDisplayName(player, match.players) : null;
+          const who = player ? `${mine ? "Vos" : displayName} en ${TEAM_IN[team]}${player.alias ? `, nombre real: ${player.name}` : ""}` : `Lugar ${slot + 1} libre en ${TEAM_IN[team]}`;
           const label = draggable ? `${who}. Arrastrá o usá las flechas para moverla en tu mitad.` : who;
 
           return (
             <PitchSpot key={team + slot} point={pointOf(ref)} z={isDragging ? 20 : isSelected || mine ? 10 : 1}>
               <PlayerToken
                 team={team}
-                playerName={player?.name}
-                text={player ? initials(player.name) : String(slot + 1)}
+                playerName={displayName}
+                text={player ? initials(player.alias || player.name) : String(slot + 1)}
                 mine={mine}
                 selected={isSelected}
                 dragging={isDragging}

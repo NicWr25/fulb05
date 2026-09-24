@@ -62,7 +62,7 @@ Flujo de una visita a `/p/[id]`:
    registra como "visitante" de ese partido. Desde ahí, RLS le deja leer las tablas.
 3. **Acciones**: anotarse, cambiarse o bajarse son `INSERT`/`UPDATE`/`DELETE` directos
    sobre `match_players`; lo permitido lo deciden **RLS y triggers**, no el cliente.
-   Crear o editar partidos y mover fichas son **RPC** (`security definer`).
+   Crear o editar partidos, mover fichas y editar alias son **RPC** (`security definer`).
 4. **Tiempo real**: el cliente se suscribe a cambios; ante cualquier evento relee el
    partido (con debounce). Ver [Decisiones](#decisiones-técnicas).
 
@@ -177,6 +177,9 @@ todos los partidos**. En cambio:
 Además, los permisos (`GRANT`) se dan **por columna**: nadie puede cambiar el `user_id`
 o el `match_id` de una inscripción. Supabase da por defecto todos los permisos a
 `anon`/`authenticated`; las migraciones los revocan y dan solo lo necesario.
+El alias opcional se puede elegir al anotarse. Después, `set_player_alias` deja editarlo
+solo al jugador o al organizador si lo agregó sin `user_id`. Los nombres iguales dentro
+de un equipo se distinguen en la cancha con el número del lugar.
 
 ### Administración
 - El creador administra con la identidad anónima del navegador donde creó el partido.

@@ -8,17 +8,18 @@ import { MatchHeader } from "./MatchHeader";
 import { MatchLayout } from "./MatchLayout";
 import { MatchPitch, type SlotRef } from "./MatchPitch";
 import { QuickAddBar } from "./QuickAddBar";
+import { AliasEditor } from "./AliasEditor";
 import { MyEntryCard } from "./MyEntryCard";
 import { ShareIconLink, ShareWideLink } from "./ShareButtons";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import type { MatchState } from "@/lib/hooks/useMatch";
 import { formatMatchDate } from "@/lib/domain/datetime";
 import { errorKind, errorMessage, SLOT_TAKEN_MESSAGE } from "@/lib/domain/errors";
-import { missingCount, missingLabel, slotsByTeam } from "@/lib/domain/match";
+import { hasNameInTeam, missingCount, missingLabel, slotsByTeam } from "@/lib/domain/match";
 import { type Point } from "@/lib/domain/positions";
 import { matchTitle } from "@/lib/domain/share";
 import { TEAM_IN, type Team } from "@/lib/domain/teams";
-import { playerNameError } from "@/lib/domain/validation";
+import { playerAliasError, playerNameError } from "@/lib/domain/validation";
 
 type AnyError = Parameters<typeof errorMessage>[0];
 
@@ -26,9 +27,9 @@ type AnyError = Parameters<typeof errorMessage>[0];
  * Vista del jugador (diseño: design/jugador-*.dc.html), interactiva.
  * El servidor ya pintó el estado inicial; acá se suman la sesión y las acciones.
  *
- * Las acciones escriben DIRECTO en match_players: las reglas las hacen
- * cumplir RLS (solo como vos mismo, solo tu fila) y los triggers (lugar
- * válido y cierre). El cliente solo traduce los errores.
+ * Inscripción y movimientos escriben directo en match_players: RLS limita
+ * las filas y los triggers validan lugar y cierre. Editar el alias usa una
+ * RPC que también valida la identidad. El cliente solo traduce los errores.
  */
 export function PlayerView({
   state,
@@ -42,6 +43,8 @@ export function PlayerView({
   const { match, uid, me, status, reload } = state;
   const [picked, setPicked] = useState<SlotRef | null>(null);
   const [name, setName] = useState("");
+  const [alias, setAlias] = useState("");
+  const [editAlias, setEditAlias] = useState<string | null>(null);
   const [team, setTeam] = useState<Team>("A");
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -67,6 +70,8 @@ export function PlayerView({
   // selección deja de valer. Se deriva en el render, sin efectos.
   const selected = picked && !slots[picked.team][picked.slot] && picked.slot < match.format ? picked : null;
   const teamFull = (t: Team) => slots[t].every(Boolean);
+  const targetTeam = selected?.team ?? team;
+  const duplicateName = hasNameInTeam(name, targetTeam, match.players);
 
   function pick(ref: SlotRef) {
     setError(null);
@@ -109,7 +114,7 @@ export function PlayerView({
 
   async function join() {
     setTried(true);
-    if (playerNameError(name) || !uid) return;
+    if (playerNameError(name) || playerAliasError(alias) || !uid) return;
     // Sin lugar elegido, la base asigna el primer lugar libre o rechaza el alta.
     const target = selected ?? { team, slot: null as unknown as number };
     await run(() =>
@@ -117,10 +122,19 @@ export function PlayerView({
         match_id: match.id,
         user_id: uid,
         name: name.trim(),
+        alias: alias.trim() || null,
         team: target.team,
         slot: target.slot,
       }),
     );
+  }
+
+  async function saveAlias() {
+    if (!me || editAlias === null || playerAliasError(editAlias)) return;
+    const ok = await run(() => supabaseBrowser().rpc("set_player_alias", {
+      p_match_id: match.id, p_player_id: me.id, p_alias: editAlias.trim(),
+    }));
+    if (ok) setEditAlias(null);
   }
 
   async function move() {
@@ -208,9 +222,14 @@ export function PlayerView({
               name={name}
               onName={(value) => { setName(value); setError(null); }}
               nameError={tried ? playerNameError(name) : null}
-              team={selected?.team ?? team}
+              alias={alias}
+              onAlias={(value) => { setAlias(value); setError(null); }}
+              aliasError={tried ? playerAliasError(alias) : null}
+              showAlias={duplicateName || Boolean(alias)}
+              team={targetTeam}
               onTeam={chooseTeam}
-              hint={notice ?? hint}
+              teamDisabled={(value) => !ready || teamFull(value)}
+              hint={notice ?? (duplicateName ? "Ya hay alguien con ese nombre en el equipo. Podés usar un alias; si no, se verá el número del lugar." : hint)}
               error={error}
               placeholder="Tu nombre"
               submitLabel={!ready ? "Conectando…" : "Anotarme"}
@@ -226,6 +245,12 @@ export function PlayerView({
             error={error} canMove={Boolean(selected)} busy={busy}
             onMove={move} onLeave={leave}
           />}
+          {!closed && me && <div className="flex flex-col gap-2">
+            {editAlias === null ? <button type="button" onClick={() => setEditAlias(me.alias ?? "")}
+              className="min-h-11 self-start rounded-btn border border-line-strong bg-surface px-3 text-13 font-semibold">Editar alias en la cancha</button>
+              : <AliasEditor value={editAlias} onChange={setEditAlias} onSave={saveAlias}
+                  onCancel={() => setEditAlias(null)} busy={busy} error={playerAliasError(editAlias) ?? error} />}
+          </div>}
           <MatchPitch
             match={match}
             meId={me?.id}

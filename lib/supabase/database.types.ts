@@ -15,6 +15,7 @@ export type Database = {
           id: string
           match_id: string
           name: string
+          alias: string | null
           slot: number
           team: string
           user_id: string | null
@@ -24,6 +25,7 @@ export type Database = {
           id?: string
           match_id: string
           name: string
+          alias?: string | null
           slot: number
           team: string
           user_id?: string | null
@@ -33,6 +35,7 @@ export type Database = {
           id?: string
           match_id?: string
           name?: string
+          alias?: string | null
           slot?: number
           team?: string
           user_id?: string | null
@@ -140,6 +143,14 @@ export type Database = {
           p_player_id: string
           p_slot: number
           p_team: string
+        }
+        Returns: undefined
+      }
+      set_player_alias: {
+        Args: {
+          p_match_id: string
+          p_player_id: string
+          p_alias: string
         }
         Returns: undefined
       }
@@ -304,4 +315,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

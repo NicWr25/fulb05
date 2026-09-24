@@ -4,7 +4,7 @@
  * pero la validación que manda es la de Postgres.
  */
 
-export const LIMITS = { title: 60, venue: 80, name: 24, mapsUrl: 500 } as const;
+export const LIMITS = { title: 60, venue: 80, name: 24, alias: 24, mapsUrl: 500 } as const;
 
 // Caracteres de control (saltos de línea, tabs...): el CHECK los rechaza.
 const CONTROL = /[\u0000-\u001f\u007f]/;
@@ -35,6 +35,14 @@ export function playerNameError(raw: string): string | null {
   if (!name) return "Poné tu nombre.";
   if (name.length > LIMITS.name) return `Hasta ${LIMITS.name} letras.`;
   if (CONTROL.test(name)) return "El nombre tiene caracteres raros.";
+  return null;
+}
+
+/** El alias puede quedar vacío: en ese caso se muestra el nombre real. */
+export function playerAliasError(raw: string): string | null {
+  const alias = raw.trim();
+  if (alias.length > LIMITS.alias) return `Hasta ${LIMITS.alias} letras.`;
+  if (CONTROL.test(alias)) return "El alias tiene caracteres raros.";
   return null;
 }
 

@@ -54,7 +54,7 @@ export function useMatch(initial: Match) {
         .maybeSingle(),
       sb
         .from("match_players")
-        .select("id, name, team, slot, user_id")
+        .select("id, name, alias, team, slot, user_id")
         .eq("match_id", id)
         .order("slot", { ascending: true }),
     ]);
