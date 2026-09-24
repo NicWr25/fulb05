@@ -1,5 +1,7 @@
 # fulb05 · Armá el partido
 
+[![CI](https://github.com/NicWr25/fulb05/actions/workflows/ci.yml/badge.svg)](https://github.com/NicWr25/fulb05/actions/workflows/ci.yml)
+
 App web (pensada para el celular) para armar equipos de **fútbol 5 o 7** entre amigos.
 Alguien crea el partido, pasa el link por WhatsApp y cada uno entra, pone su nombre y
 elige equipo y puesto tocando la cancha. Todos ven lo mismo, en vivo, sin registrarse.
@@ -107,6 +109,10 @@ y no hace falta instalarla global. `supabase start` aplica todas las migraciones
 | `pnpm db:reset` | Recrea la base local aplicando `supabase/migrations/` desde cero |
 | `pnpm db:types` | Regenera `lib/supabase/database.types.ts` desde el esquema |
 | `pnpm typecheck` / `pnpm lint` | TypeScript y ESLint |
+
+En GitHub, [CI](.github/workflows/ci.yml) corre todo esto en cada push y pull request:
+lint, tipos, tests unitarios y build; y en paralelo levanta Supabase en Docker, aplica
+las migraciones desde cero y corre los tests pgTAP y de integración.
 
 `/dev/ui` (solo en desarrollo) muestra todos los componentes para compararlos con `design/`.
 

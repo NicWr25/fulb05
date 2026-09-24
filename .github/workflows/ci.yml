@@ -1,0 +1,76 @@
+# CI: en cada push a main y en cada pull request.
+#
+# Dos jobs en paralelo:
+#   app → lint, typecheck, tests unitarios y build de Next.js (rápido, sin base).
+#   db  → levanta Supabase en Docker con la misma CLI del repo, aplica TODAS las
+#         migraciones desde cero y corre los tests pgTAP y los de integración.
+#         Si una migración no es reproducible, falla acá.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Si llega un push nuevo a la misma rama, se cancela la corrida anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: Lint, tipos, tests unitarios y build
+    runs-on: ubuntu-latest
+    env:
+      # El build solo necesita que existan (las páginas de partido son dinámicas
+      # y no consultan la base en el build). No son secretos.
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+      NEXT_PUBLIC_SITE_URL: https://example.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # usa la versión de "packageManager" del package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  db:
+    name: Base de datos (pgTAP + integración)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Solo los servicios que usan los tests: Postgres, Auth (gotrue), la API
+      # (postgrest + kong) y Realtime. El resto se excluye para arrancar más rápido.
+      - name: Levantar Supabase local
+        run: pnpm supabase start -x storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Tests pgTAP (RLS, triggers, RPC, expiración)
+        run: pnpm db:test
+
+      - name: Variables para los tests de integración
+        run: |
+          pnpm -s supabase status -o json \
+            | jq -r '"NEXT_PUBLIC_SUPABASE_URL=\(.API_URL)\nNEXT_PUBLIC_SUPABASE_ANON_KEY=\(.ANON_KEY)"' > .env.local
+
+      - name: Tests de integración (concurrencia, Realtime)
+        run: pnpm test:integration
+
+      - name: Apagar Supabase
+        if: always()
+        run: pnpm supabase stop --no-backup
