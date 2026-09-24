@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { StatBox } from "@/components/ui/StatBox";
+import { ConnectionBanner } from "./ConnectionBanner";
 import { MatchHeader } from "./MatchHeader";
 import { MatchLayout } from "./MatchLayout";
 import { MatchPitch, type SlotRef } from "./MatchPitch";
@@ -43,13 +44,26 @@ export function MatchClient({
   renderedAt: number;
   shareHref: string;
 }) {
-  const { match, uid, me, status, reload } = useMatch(initial);
+  const { match, uid, me, status, live, reload } = useMatch(initial);
   const [picked, setPicked] = useState<SlotRef | null>(null);
   const [name, setName] = useState("");
   const [team, setTeam] = useState<Team>("A");
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [prevMeId, setPrevMeId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Si mi inscripción desaparece sin que yo me haya bajado, me sacó el
+  // organizador (llega por Realtime). Patrón de React "guardar el valor del
+  // render anterior en el estado": se compara durante el render, sin efectos.
+  const meId = me?.id ?? null;
+  if (meId !== prevMeId) {
+    setPrevMeId(meId);
+    if (prevMeId && !meId && !leaving) setNotice("El organizador te sacó del partido. Si querés, podés volver a anotarte.");
+    if (meId) setNotice(null);
+  }
 
   const slots = slotsByTeam(match);
   const roles = slotRoles(match.format);
@@ -131,7 +145,9 @@ export function MatchClient({
   async function leave() {
     if (!me) return;
     const myName = me.name;
+    setLeaving(true);
     const ok = await run(() => supabaseBrowser().from("match_players").delete().eq("id", me.id));
+    setLeaving(false);
     if (ok) setName(myName); // por si se quiere volver a anotar
   }
 
@@ -190,7 +206,7 @@ export function MatchClient({
         nameError={tried ? playerNameError(name) : null}
         team={team}
         onTeam={chooseTeam}
-        hint={hint}
+        hint={notice ?? hint}
         error={error}
         submitLabel={!ready ? "Conectando…" : !selected && teamFull(team) ? "Anotarme al banco" : "Anotarme"}
         busy={busy}
@@ -201,49 +217,52 @@ export function MatchClient({
   }
 
   return (
-    <MatchLayout
-      header={
-        <MatchHeader
-          eyebrow={closed ? "Partido cerrado" : "Partido entre amigos"}
-          title={title}
-          when={when}
-          venue={match.venue}
-          mapsUrl={match.maps_url}
-          organizer={match.organizer_name}
-          action={<ShareIconLink href={shareHref} />}
-        />
-      }
-      stat={
-        closed ? (
-          <StatBox value="—" title="Las inscripciones cerraron" subtitle="El partido ya empezó." />
-        ) : (
-          <StatBox
-            value={missing}
-            title={missingLabel(missing)}
-            subtitle={`${match.format} vs ${match.format} · ${match.format * 2} jugadores en cancha`}
+    <>
+      <ConnectionBanner live={status === "ready" ? live : "connecting"} />
+      <MatchLayout
+        header={
+          <MatchHeader
+            eyebrow={closed ? "Partido cerrado" : "Partido entre amigos"}
+            title={title}
+            when={when}
+            venue={match.venue}
+            mapsUrl={match.maps_url}
+            organizer={match.organizer_name}
+            action={<ShareIconLink href={shareHref} />}
           />
-        )
-      }
-      pitch={
-        <>
-          <TeamLegend />
-          <MatchPitch
-            match={match}
-            meId={me?.id}
-            selected={selected}
-            onPick={closed ? undefined : pick}
-            disabled={busy}
-          />
-          <p className="text-13 leading-[1.45] text-ink-2">
-            {closed
-              ? "El partido ya empezó: la cancha queda como estaba."
-              : "Tocá un puesto libre para elegirlo. El organizador acomoda las posiciones."}
-          </p>
-        </>
-      }
-      card={card}
-      rosters={<Rosters match={match} meId={me?.id} />}
-      share={<ShareWideLink href={shareHref} />}
-    />
+        }
+        stat={
+          closed ? (
+            <StatBox value="—" title="Las inscripciones cerraron" subtitle="El partido ya empezó." />
+          ) : (
+            <StatBox
+              value={missing}
+              title={missingLabel(missing)}
+              subtitle={`${match.format} vs ${match.format} · ${match.format * 2} jugadores en cancha`}
+            />
+          )
+        }
+        pitch={
+          <>
+            <TeamLegend />
+            <MatchPitch
+              match={match}
+              meId={me?.id}
+              selected={selected}
+              onPick={closed ? undefined : pick}
+              disabled={busy}
+            />
+            <p className="text-13 leading-[1.45] text-ink-2">
+              {closed
+                ? "El partido ya empezó: la cancha queda como estaba."
+                : "Tocá un puesto libre para elegirlo. El organizador acomoda las posiciones."}
+            </p>
+          </>
+        }
+        card={card}
+        rosters={<Rosters match={match} meId={me?.id} />}
+        share={<ShareWideLink href={shareHref} />}
+      />
+    </>
   );
 }
