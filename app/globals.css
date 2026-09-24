@@ -1,8 +1,193 @@
 @import "tailwindcss";
 
-/* Etapa (a): placeholder. Los tokens del diseño se vuelcan acá (@theme) en la etapa (b2). */
-body {
-  background: #f4f1ea;
-  color: #16181d;
-  font-family: system-ui, sans-serif;
+/*
+ * Design tokens (fuente de verdad: design/*.dc.html)
+ * -----------------------------------------------------------------------------
+ * Tailwind v4 se configura en CSS: cada variable de @theme genera utilidades.
+ * Ej.: --color-cream -> bg-cream, text-cream, border-cream...
+ *
+ * Se anulan (initial) las escalas por defecto de colores, tamaños de texto,
+ * radios y sombras: así solo existen los valores del diseño y no se cuela
+ * un "text-gray-500" o un "rounded-lg" que no pertenece al sistema.
+ */
+@theme {
+  /* --- Colores ------------------------------------------------------------ */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  /* Superficies */
+  --color-cream: #f4f1ea; /* fondo de página */
+  --color-surface: #ffffff; /* cards */
+  --color-sand: #e6e1d5; /* segmented, stat box, tags, divisores */
+  --color-bench: #ece8de; /* chip de suplente */
+  --color-field: #fbfaf7; /* fondo de inputs */
+
+  /* Texto */
+  --color-ink: #16181d; /* texto principal, botón primario */
+  --color-ink-2: #4a4e57; /* texto secundario, labels */
+  --color-ink-3: #5a5e66; /* eyebrow */
+  --color-ink-4: #6a6e76; /* "Nadie todavía" */
+
+  /* Bordes */
+  --color-line: #ddd8cc; /* cards, chips */
+  --color-line-strong: #c9c3b5; /* inputs, botones outline suaves */
+  --color-swatch-border: #8a8577; /* borde de los circulitos de equipo */
+
+  /* Cancha */
+  --color-pitch: #2f7f4f;
+  --color-pitch-alt: #2a7447;
+  --color-tag: rgb(12 20 16 / 0.72); /* etiqueta de nombre sobre la cancha */
+
+  /* Semánticos */
+  --color-success: #2f7f4f;
+  --color-link-green: #1f5c3a; /* "Cómo llegar" */
+  --color-link: #1f2a5c;
+  --color-link-hover: #11183a;
+  --color-danger: #9f1d1d;
+
+  /* Destacados */
+  --color-gold: #facc15; /* seleccionado / "vos" */
+  --color-me-bg: #fef3c7;
+  --color-me-border: #d9a400;
+  --color-admin-border: #e8c65a;
+  --color-admin-ink: #5c4a0e;
+
+  /* Equipos (fijos en el MVP) */
+  --color-team-a: #f2eee3; /* Claros */
+  --color-team-b: #1f2a5c; /* Oscuros */
+
+  /* --- Tipografía --------------------------------------------------------- */
+  /* --font-plex y --font-bricolage las define next/font en app/layout.tsx. */
+  --font-sans: var(--font-plex), system-ui, sans-serif;
+  --font-display: var(--font-bricolage), Georgia, serif;
+
+  /* Escala en px del diseño: text-13 = 13px. Nombres numéricos a propósito,
+     así se comparan 1:1 con los prototipos. */
+  --text-*: initial;
+  --text-11: 11px;
+  --text-12: 12px;
+  --text-13: 13px;
+  --text-14: 14px;
+  --text-15: 15px;
+  --text-16: 16px;
+  --text-17: 17px;
+  --text-19: 19px;
+  /* display (Bricolage) */
+  --text-20: 20px;
+  --text-24: 24px;
+  --text-26: 26px;
+  --text-28: 28px;
+  --text-30: 30px;
+  --text-38: 38px;
+  --text-40: 40px;
+  --text-68: 68px;
+
+  --tracking-eyebrow: 0.12em;
+
+  /* --- Radios (nombres semánticos) ------------------------------------------ */
+  --radius-*: initial;
+  --radius-tag: 6px; /* etiquetas de nombre, píldora de formato */
+  --radius-seg: 9px; /* opción interna del segmented */
+  --radius-field: 10px; /* inputs, botones chicos */
+  --radius-btn: 12px; /* botones, segmented, stat box */
+  --radius-box: 14px; /* cancha, cajas de enlace */
+  --radius-card: 16px;
+  --radius-panel: 20px; /* card de crear partido */
+
+  /* --- Sombras ------------------------------------------------------------ */
+  --shadow-*: initial;
+  --shadow-seg: 0 1px 3px rgb(0 0 0 / 0.15);
+  --shadow-token: 0 2px 6px rgb(0 0 0 / 0.3);
+  --shadow-token-sel: 0 0 0 4px var(--color-gold), 0 4px 10px rgb(0 0 0 / 0.35);
+  --shadow-token-drag: 0 8px 18px rgb(0 0 0 / 0.45);
+  --shadow-pitch: inset 0 0 0 1px rgb(0 0 0 / 0.15);
+}
+
+@layer base {
+  html {
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+    /* Evita el "flash" azul al tocar en Android/iOS: el estado lo dan los estilos. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  a {
+    color: var(--color-link);
+  }
+  a:hover {
+    color: var(--color-link-hover);
+  }
+
+  /*
+   * Foco visible — corrección de accesibilidad respecto del diseño.
+   * El diseño usa un anillo dorado #E0A800 en todos lados, pero sobre el fondo
+   * crema da ~1,9:1 (WCAG pide 3:1 para indicadores no textuales).
+   *   - Sobre superficies claras: anillo tinta (~16:1).
+   *   - Sobre la cancha (verde oscuro): el dorado del diseño (~3,3:1).
+   * El color se toma de --focus-ring, que la cancha redefine.
+   */
+  :root {
+    --focus-ring: var(--color-ink);
+  }
+  :focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * Cancha: se dibuja PARADA en el celular y APAISADA desde `lg` (1024px).
+ * Todo se resuelve en CSS (no en JS) para que el HTML del servidor ya salga
+ * bien ubicado y no haya "saltos" al hidratar.
+ */
+@layer components {
+  .pitch-surface {
+    /* Franjas de césped: 12 a lo largo en vertical (46px de 553 en el diseño). */
+    background: repeating-linear-gradient(
+      180deg,
+      var(--color-pitch) 0 8.333%,
+      var(--color-pitch-alt) 8.333% 16.667%
+    );
+    /* El foco sobre el verde usa el dorado del diseño (~3,3:1 contra el césped). */
+    --focus-ring: var(--color-gold);
+  }
+
+  /*
+   * Cada ficha recibe sus coordenadas canónicas (--x a lo largo, --y a lo ancho,
+   * en %). En vertical, Claros (x = 0) quedan abajo: top = 100 - x.
+   * Misma fórmula que toScreen() en lib/domain/positions.ts.
+   */
+  .pitch-spot {
+    position: absolute;
+    left: calc(var(--y) * 1%);
+    top: calc((100 - var(--x)) * 1%);
+    transform: translate(-50%, -50%);
+  }
+
+  @media (width >= 64rem) {
+    .pitch-surface {
+      /* 14 franjas verticales (60px de 840 en el diseño). */
+      background: repeating-linear-gradient(
+        90deg,
+        var(--color-pitch) 0 7.143%,
+        var(--color-pitch-alt) 7.143% 14.286%
+      );
+    }
+    .pitch-spot {
+      left: calc(var(--x) * 1%);
+      top: calc(var(--y) * 1%);
+    }
+  }
 }
