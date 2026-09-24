@@ -1,0 +1,3 @@
+-- Datos de ejemplo para desarrollo local (se cargan en `supabase db reset`).
+-- Vacío a propósito: los partidos se crean desde la app con create_match,
+-- que necesita un usuario autenticado (auth.uid()).
