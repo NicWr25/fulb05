@@ -17,11 +17,11 @@ import { TextField } from "@/components/ui/TextField";
 import { LinkIcon, PinIcon, WhatsAppIcon } from "@/components/ui/icons";
 import { Pitch, PitchSpot } from "@/components/pitch/Pitch";
 import { PlayerToken } from "@/components/pitch/PlayerToken";
-import { defaultLayout, initials, ROLE_NAME, slotRoles } from "@/lib/domain/positions";
-import { TEAM_LABEL, TEAMS, type Format, type Team } from "@/lib/domain/teams";
+import { defaultLayout, initials } from "@/lib/domain/positions";
+import { TEAM_IN, TEAM_LABEL, TEAMS, type Format, type Team } from "@/lib/domain/teams";
 
 const COLORS = [
-  "cream", "surface", "sand", "bench", "field", "ink", "ink-2", "ink-3", "ink-4", "line",
+  "cream", "surface", "sand", "field", "ink", "ink-2", "ink-3", "ink-4", "line",
   "line-strong", "pitch", "success", "link-green", "danger", "gold", "me-bg",
   "admin-border", "team-a", "team-b",
 ];
@@ -46,7 +46,6 @@ export function UiGallery() {
   const [team, setTeam] = useState<Team>("A");
   const [sel, setSel] = useState<string | null>("A3");
   const layout = defaultLayout(format);
-  const roles = slotRoles(format);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-4 py-6 lg:px-8">
@@ -70,12 +69,11 @@ export function UiGallery() {
       </Section>
 
       <Section title="Tipografía">
-        <Eyebrow>Partido entre amigos</Eyebrow>
         <p className="font-display text-38 leading-[1.02] font-extrabold lg:text-68 lg:leading-none">Armá el partido.</p>
         <p className="font-display text-30 leading-[1.05] font-extrabold">Fútbol del viernes</p>
         <p className="font-display text-20 font-extrabold">Anotate</p>
         <p className="text-16 leading-normal text-ink-2">
-          Cada uno se anota solo, en su equipo y en su puesto. (IBM Plex Sans 16)
+          Cada uno se anota solo, en su equipo y en un lugar libre. (IBM Plex Sans 16)
         </p>
         <p className="text-13 text-ink-2">Texto de ayuda 13px, ink-2.</p>
       </Section>
@@ -135,7 +133,7 @@ export function UiGallery() {
               <SuccessMark />
               <CardTitle>¡Listo, Nico!</CardTitle>
             </div>
-            <p className="text-15 leading-normal">Jugás de defensa en Claros.</p>
+            <p className="text-15 leading-normal">Jugás en el equipo blanco.</p>
           </Card>
           <Card panel>
             <div className="flex items-center gap-3">
@@ -143,13 +141,6 @@ export function UiGallery() {
               <h2 className="font-display text-24 font-extrabold lg:text-26">¡Partido creado!</h2>
             </div>
             <LinkBox title="Enlace para invitar" url="https://fulb05.vercel.app/p/x7k2m9ab" note="Pasalo por el grupo para que se anoten." />
-            <LinkBox
-              tone="admin"
-              title="Tu enlace de organizador"
-              url="https://fulb05.vercel.app/p/x7k2m9ab/admin#secreto"
-              displayUrl="fulb05.vercel.app/p/x7k2m9ab/admin#••••••"
-              note="Con este enlace editás el partido. No lo compartas."
-            />
           </Card>
           <MapsLink href="https://maps.app.goo.gl/ejemplo">Cancha Parque · Cómo llegar</MapsLink>
         </div>
@@ -159,10 +150,7 @@ export function UiGallery() {
         <div className="flex flex-wrap gap-1.5">
           <PlayerChip name="Nico" />
           <PlayerChip name="Santi" me />
-          <PlayerChip name="Fede" bench />
-          <PlayerChip name="Mati" me bench />
           <PlayerChip name="Joaco" onRemove={() => alert("sacar a Joaco")} />
-          <PlayerChip name="Pedro" bench onRemove={() => alert("sacar a Pedro")} />
           <span className="text-14 text-ink-4">Nadie todavía</span>
         </div>
         <div className="flex items-center gap-2 text-15 font-semibold">
@@ -189,14 +177,14 @@ export function UiGallery() {
                     <PlayerToken
                       team={t}
                       playerName={name}
-                      text={name ? initials(name) : roles[i]}
+                      text={name ? initials(name) : String(i + 1)}
                       mine={mine}
                       selected={selected}
                       static={Boolean(name)}
                       aria-label={
                         name
-                          ? `${mine ? "Vos" : name}, ${ROLE_NAME[roles[i]]} de ${TEAM_LABEL[t]}`
-                          : `Puesto libre de ${ROLE_NAME[roles[i]]} en ${TEAM_LABEL[t]}`
+                          ? `${mine ? "Vos" : name} en ${TEAM_IN[t]}`
+                          : `Lugar ${i + 1} libre en ${TEAM_IN[t]}`
                       }
                       onClick={() => setSel(selected ? null : key)}
                     />

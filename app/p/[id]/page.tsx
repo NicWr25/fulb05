@@ -2,9 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MatchClient } from "@/components/match/MatchClient";
 import { getMatchPreview } from "@/lib/supabase/server";
-import { formatMatchDate, weekday } from "@/lib/domain/datetime";
 import { ogDescription, ogTitle } from "@/lib/domain/og";
-import { inviteMessage, matchTitle, whatsappUrl } from "@/lib/domain/share";
 import { siteUrl } from "@/lib/site";
 
 // Diseño: design/jugador-{celular,escritorio}.dc.html
@@ -41,9 +39,5 @@ export default async function MatchPage({ params }: PageProps<"/p/[id]">) {
   const match = await getMatchPreview(id);
   if (!match) notFound();
 
-  const title = matchTitle(match.title, weekday(match.starts_at, match.timezone));
-  const when = formatMatchDate(match.starts_at, match.timezone);
-  const shareHref = whatsappUrl(inviteMessage({ title, when, venue: match.venue, url: `${siteUrl()}/p/${match.id}` }));
-
-  return <MatchClient initial={match} renderedAt={Date.parse(match.server_now)} shareHref={shareHref} />;
+  return <MatchClient initial={match} renderedAt={Date.parse(match.server_now)} publicUrl={`${siteUrl()}/p/${match.id}`} />;
 }

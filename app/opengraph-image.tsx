@@ -9,7 +9,7 @@ export const contentType = "image/png";
 
 export default async function Image() {
   const lines = ["Armá el partido.", "Pasá el enlace."];
-  const sub = "Cada uno se anota solo, en su equipo y en su puesto.";
+  const sub = "Cada uno se anota solo, en su equipo y en un lugar libre.";
   const eyebrow = "ARMADO DE EQUIPOS";
   return new ImageResponse(
     (

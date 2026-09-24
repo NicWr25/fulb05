@@ -1,4 +1,4 @@
-import { formatMatchDate, formatWeekdayTime, weekday } from "./datetime";
+import { formatMatchDate, formatWeekdayTime } from "./datetime";
 import { missingCount, missingLabel, type Match } from "./match";
 import { matchTitle } from "./share";
 
@@ -9,7 +9,7 @@ import { matchTitle } from "./share";
 
 /** "Fútbol 5 · Jueves 21:00 · Cancha X" */
 export function ogTitle(match: Pick<Match, "format" | "starts_at" | "timezone" | "venue">): string {
-  return `Fútbol ${match.format} · ${formatWeekdayTime(match.starts_at, match.timezone)} · ${match.venue}`;
+  return `Fútbol ${match.format} · ${formatWeekdayTime(match.starts_at, match.timezone)}${match.venue ? ` · ${match.venue}` : ""}`;
 }
 
 /** "Fútbol del viernes · Faltan 3 jugadores · Organiza Nico. ¡Anotate!" */
@@ -24,9 +24,9 @@ export function ogDescription(match: Match, opts: { closed?: boolean } = {}): st
 
 /** Datos ya formateados para dibujar la imagen. */
 export function ogImageData(match: Match) {
-  const perTeam = (t: "A" | "B") => match.players.filter((p) => p.team === t && p.slot !== null).length;
+  const perTeam = (t: "A" | "B") => match.players.filter((p) => p.team === t && true).length;
   return {
-    title: matchTitle(match.title, weekday(match.starts_at, match.timezone)),
+    title: matchTitle(match.title, match.organizer_name),
     when: formatMatchDate(match.starts_at, match.timezone),
     venue: match.venue,
     format: match.format,

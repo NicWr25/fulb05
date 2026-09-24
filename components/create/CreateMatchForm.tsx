@@ -14,7 +14,6 @@ import { ensureSession, supabaseBrowser } from "@/lib/supabase/browser";
 import { browserTimeZone } from "@/lib/domain/datetime";
 import { errorMessage } from "@/lib/domain/errors";
 import {
-  adminSelfMessage,
   inviteMessage,
   whatsappUrl,
 } from "@/lib/domain/share";
@@ -22,6 +21,7 @@ import {
   LIMITS,
   normalizeMapsUrl,
   validateMatchInput,
+  venueFromMapsUrl,
   type CreateMatchInput,
 } from "@/lib/domain/validation";
 
@@ -35,7 +35,7 @@ const EMPTY: CreateMatchInput = {
   organizerName: "",
 };
 
-type Created = { id: string; adminToken: string; input: CreateMatchInput };
+type Created = { id: string; input: CreateMatchInput };
 
 /** "viernes 26/9" a partir de "2026-09-26" (fecha local, sin zona horaria). */
 function niceDate(iso: string): string {
@@ -88,8 +88,8 @@ export function CreateMatchForm() {
         p_organizer_name: input.organizerName,
       });
       if (error) throw error;
-      const res = data as { id: string; admin_token: string };
-      setCreated({ id: res.id, adminToken: res.admin_token, input });
+      const res = data as { id: string };
+      setCreated({ id: res.id, input });
     } catch (err) {
       setServerError(errorMessage(err as Parameters<typeof errorMessage>[0]));
     } finally {
@@ -127,17 +127,6 @@ export function CreateMatchForm() {
           ]}
         />
 
-        <TextField
-          label="Nombre del partido"
-          labelNote="(opcional)"
-          autoComplete="off"
-          placeholder="ej. Fútbol del viernes"
-          maxLength={LIMITS.title}
-          value={input.title}
-          onChange={(e) => set("title")(e.target.value)}
-          error={show("title")}
-        />
-
         <div className="grid grid-cols-2 gap-3">
           <TextField
             label="Día"
@@ -157,6 +146,7 @@ export function CreateMatchForm() {
 
         <TextField
           label="Cancha"
+          labelNote="(opcional)"
           autoComplete="off"
           placeholder="Nombre de la cancha"
           maxLength={LIMITS.venue}
@@ -167,14 +157,16 @@ export function CreateMatchForm() {
 
         <TextField
           label="Ubicación en Google Maps"
-          labelNote="(opcional)"
           type="url"
           inputMode="url"
           autoComplete="off"
           placeholder="Pegá el enlace de la cancha"
           icon={<PinIcon />}
           value={input.mapsUrl}
-          onChange={(e) => set("mapsUrl")(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setInput((old) => ({ ...old, mapsUrl: value, venue: old.venue || venueFromMapsUrl(value) || "" }));
+          }}
           error={show("mapsUrl")}
           hint="En Google Maps buscá la cancha, tocá Compartir y copiá el enlace. Así los jugadores ven cómo llegar."
         />
@@ -223,14 +215,26 @@ function Created({
     headingRef.current?.focus();
   }, []);
 
-  const { id, adminToken, input } = created;
-  const title =
-    input.title.trim() || `Partido del ${niceDate(input.date).split(" ")[0]}`;
+  const { id, input } = created;
+  const [team, setTeam] = useState<"A" | "B">("A");
+  const [joined, setJoined] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  async function join() {
+    setJoining(true); setJoinError(null);
+    try {
+      const uid = await ensureSession();
+      const { error } = await supabaseBrowser().from("match_players").insert({
+        match_id: id, user_id: uid, name: input.organizerName.trim(), team, slot: null as unknown as number,
+      });
+      if (error) throw error;
+      setJoined(true);
+    } catch (err) { setJoinError(errorMessage(err as Parameters<typeof errorMessage>[0])); }
+    finally { setJoining(false); }
+  }
+  const title = `Partido de ${input.organizerName.trim()}`;
   const when = `${niceDate(input.date)}, ${input.time}`;
   const publicUrl = `${origin}/p/${id}`;
-  // El token va en el FRAGMENTO (#): el navegador nunca lo manda al servidor,
-  // así no queda en logs ni en el header Referer.
-  const adminUrl = `${origin}/p/${id}/admin#${adminToken}`;
   const bare = (u: string) => u.replace(/^https?:\/\//, "");
   const maps = normalizeMapsUrl(input.mapsUrl);
 
@@ -249,7 +253,7 @@ function Created({
         </div>
 
         <p className="text-15 leading-normal text-ink-2">
-          {title} · {when} · {input.venue.trim()} · {input.format} vs{" "}
+          {title} · {when}{input.venue.trim() ? ` · ${input.venue.trim()}` : ""} · {input.format} vs{" "}
           {input.format}
         </p>
         {maps && (
@@ -258,7 +262,14 @@ function Created({
           </MapsLink>
         )}
 
-        <div className="flex flex-col gap-2">
+        {!joined && <div className="flex flex-col gap-3 rounded-panel border border-line bg-cream p-4">
+          <h3 className="font-display text-20 font-semibold">Primero, elegí tu equipo</h3>
+          <p className="text-14 text-ink-2">Vas a jugar como {input.organizerName.trim()}.</p>
+          <div className="flex gap-2">{(["A", "B"] as const).map((value) => <button key={value} type="button" aria-pressed={team === value} onClick={() => setTeam(value)} className={`min-h-11 flex-1 rounded-btn border px-3 font-semibold ${team === value ? "border-ink bg-ink text-white" : "border-line-strong bg-surface text-ink"}`}>{value === "A" ? "Blanco" : "Negro"}</button>)}</div>
+          {joinError && <p role="alert" className="text-13 text-danger">{joinError}</p>}
+          <Button onClick={join} disabled={joining}>{joining ? "Anotando…" : "Anotarme y continuar"}</Button>
+        </div>}
+        {joined && <div className="flex flex-col gap-2">
           <LinkBox
             title="Enlace para invitar"
             url={publicUrl}
@@ -280,32 +291,9 @@ function Created({
           >
             <WhatsAppIcon /> Mandar al grupo por WhatsApp
           </a>
-        </div>
+        </div>}
 
-        <div className="flex flex-col gap-2">
-          <LinkBox
-            tone="admin"
-            title="Tu enlace de organizador"
-            url={adminUrl}
-            displayUrl={`${bare(origin)}/p/${id}/admin#••••••`}
-            note="Con este enlace editás el partido desde cualquier celular. No lo compartas: guardalo en un chat con vos mismo."
-          />
-          <a
-            href={whatsappUrl(adminSelfMessage({ title, adminUrl }))}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-11 items-center justify-center gap-2 rounded-btn text-15 font-semibold text-admin-ink underline underline-offset-2 hover:text-admin-ink"
-          >
-            <WhatsAppIcon size={16} /> Mandármelo por WhatsApp
-          </a>
-        </div>
-
-        <Link
-          href={`/p/${id}`}
-          className="flex h-13 items-center justify-center rounded-btn bg-ink text-16 font-semibold text-white no-underline hover:text-white lg:text-17"
-        >
-          Ir al panel del organizador
-        </Link>
+        {joined && <Link href={`/p/${id}`} className="flex h-13 items-center justify-center rounded-btn bg-ink text-16 font-semibold text-white no-underline hover:text-white lg:text-17">Ir al panel del organizador</Link>}
         <Button variant="ghost" size="sm" onClick={onReset}>
           Crear otro partido
         </Button>

@@ -3,15 +3,18 @@
 import { useEffect, useState } from "react";
 import type { Match } from "@/lib/domain/match";
 import { useMatch } from "@/lib/hooks/useMatch";
+import { formatMatchDate } from "@/lib/domain/datetime";
+import { inviteMessage, matchTitle, whatsappUrl } from "@/lib/domain/share";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { NotFoundCard } from "./NotFoundCard";
+import { OrganizerSetup } from "./OrganizerSetup";
 import { OrganizerView } from "./OrganizerView";
 import { PlayerView } from "./PlayerView";
 
 /**
  * Punto de entrada del partido en el cliente: sesión + datos en vivo
  * (useMatch) y elección de vista.
- *   - Si tu uid está en match_admins → panel del organizador.
+ *   - Si tu uid creó el partido → panel del organizador.
  *   - Si no → vista de jugador.
  * Ojo: esto es solo PRESENTACIÓN. Que el panel se vea no da ningún poder:
  * cada acción de admin la valida la base (RLS / is_match_admin).
@@ -19,15 +22,21 @@ import { PlayerView } from "./PlayerView";
 export function MatchClient({
   initial,
   renderedAt,
-  shareHref,
+  publicUrl,
 }: {
   initial: Match;
   /** Hora de Postgres al renderizar (server_now): el mismo reloj que usa el trigger de cierre. */
   renderedAt: number;
-  shareHref: string;
+  publicUrl: string;
 }) {
   const state = useMatch(initial);
-  const { match, status, live, isAdmin } = state;
+  const { match, status, live, isAdmin, me } = state;
+  const shareHref = whatsappUrl(inviteMessage({
+    title: matchTitle(match.title, match.organizer_name),
+    when: formatMatchDate(match.starts_at, match.timezone),
+    venue: match.venue,
+    url: publicUrl,
+  }));
   const startsAt = Date.parse(match.starts_at);
 
   // "Ahora" según el reloj de Postgres (el que usa el trigger de cierre).
@@ -56,7 +65,9 @@ export function MatchClient({
   return (
     <>
       <ConnectionBanner live={status === "ready" ? live : "connecting"} />
-      {isAdmin ? (
+      {isAdmin && !me && !closed ? (
+        <OrganizerSetup state={state} />
+      ) : isAdmin ? (
         <OrganizerView state={state} closed={closed} shareHref={shareHref} />
       ) : (
         <PlayerView state={state} closed={closed} shareHref={shareHref} />

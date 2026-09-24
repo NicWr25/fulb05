@@ -11,7 +11,7 @@ export type MatchStatus = "connecting" | "ready" | "error" | "gone";
 /** Estado del canal en vivo (Realtime). */
 export type LiveStatus = "connecting" | "live" | "offline";
 
-/** Espera antes de releer tras un evento: agrupa ráfagas (ej. bajarse + ascenso del banco). */
+/** Espera antes de releer tras un evento: agrupa ráfagas. */
 const DEBOUNCE_MS = 150;
 
 /**
@@ -24,11 +24,10 @@ const DEBOUNCE_MS = 150;
  *    inscripción es la nuestra).
  * 4. Se suscribe a Realtime. Ante CUALQUIER cambio, vuelve a leer todo
  *    (con debounce) en vez de aplicar el payload del evento. ¿Por qué?
- *      - Una acción genera varios eventos (bajarse = DELETE + UPDATE del que
- *        asciende del banco): releer una vez deja el estado consistente.
+ *      - Una acción puede generar varios eventos: releer una vez deja el estado consistente.
  *      - Los DELETE de Realtime no pasan por RLS ni por el filtro de columna
  *        y solo traen la PK: no alcanzan para actualizar el estado.
- *      - El partido es chico (≤ 26 filas): releer es barato.
+ *      - El partido es chico (≤ 14 filas): releer es barato.
  *    También relee al reconectar, al volver a la pestaña y al recuperar
  *    internet, por si se perdió algún evento en el medio.
  */
@@ -41,34 +40,30 @@ export function useMatch(initial: Match) {
   const [live, setLive] = useState<LiveStatus>("connecting");
   const [isAdmin, setIsAdmin] = useState(false);
   const idRef = useRef(initial.id);
+  const uidRef = useRef<string | null>(null);
   const playerIdsRef = useRef(new Set(initial.players.map((p) => p.id)));
 
   const reload = useCallback(async () => {
     const sb = supabaseBrowser();
     const id = idRef.current;
-    const [m, p, a] = await Promise.all([
+    const [m, p] = await Promise.all([
       sb
         .from("matches")
-        .select("id, format, title, venue, maps_url, starts_at, timezone, organizer_name, layout")
+        .select("id, format, title, venue, maps_url, starts_at, timezone, organizer_name, layout, created_by")
         .eq("id", id)
         .maybeSingle(),
       sb
         .from("match_players")
         .select("id, name, team, slot, user_id")
         .eq("match_id", id)
-        // El banco se ordena por llegada al banco (el orden en que ascienden).
-        .order("bench_since", { ascending: true, nullsFirst: true })
         .order("slot", { ascending: true }),
-      // ¿Soy admin? RLS solo deja ver las filas propias de match_admins, así
-      // que alcanza con preguntar si hay alguna para este partido.
-      sb.from("match_admins").select("match_id").eq("match_id", id).maybeSingle(),
     ]);
-    if (m.error || p.error || a.error) throw m.error ?? p.error ?? a.error;
-    setIsAdmin(Boolean(a.data));
+    if (m.error || p.error) throw m.error ?? p.error;
     if (!m.data) {
       setStatus("gone"); // se borró mientras lo mirábamos
       return;
     }
+    setIsAdmin(m.data.created_by === uidRef.current);
     playerIdsRef.current = new Set(p.data.map((row) => row.id));
     setMatch({
       ...m.data,
@@ -119,6 +114,7 @@ export function useMatch(initial: Match) {
           setStatus("gone");
           return;
         }
+        uidRef.current = userId;
         setUid(userId);
         await reload();
         if (cancelled) return;

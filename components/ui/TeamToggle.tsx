@@ -4,7 +4,7 @@ import { cx } from "@/lib/cx";
 import { TEAMS, TEAM_LABEL, type Team } from "@/lib/domain/teams";
 import { TeamSwatch } from "./TeamSwatch";
 
-/** Elegir equipo (Claros / Oscuros). */
+/** Elegir equipo (Blanco / Negro). */
 export function TeamToggle({
   value,
   onChange,

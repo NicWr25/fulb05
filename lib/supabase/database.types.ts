@@ -9,83 +9,31 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      match_admin_secrets: {
-        Row: {
-          match_id: string
-          token_hash: string
-        }
-        Insert: {
-          match_id: string
-          token_hash: string
-        }
-        Update: {
-          match_id?: string
-          token_hash?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "match_admin_secrets_match_id_fkey"
-            columns: ["match_id"]
-            isOneToOne: true
-            referencedRelation: "matches"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      match_admins: {
-        Row: {
-          created_at: string
-          match_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          match_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          match_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "match_admins_match_id_fkey"
-            columns: ["match_id"]
-            isOneToOne: false
-            referencedRelation: "matches"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       match_players: {
         Row: {
-          bench_since: string | null
           created_at: string
           id: string
           match_id: string
           name: string
-          slot: number | null
+          slot: number
           team: string
           user_id: string | null
         }
         Insert: {
-          bench_since?: string | null
           created_at?: string
           id?: string
           match_id: string
           name: string
-          slot?: number | null
+          slot: number
           team: string
           user_id?: string | null
         }
         Update: {
-          bench_since?: string | null
           created_at?: string
           id?: string
           match_id?: string
           name?: string
-          slot?: number | null
+          slot?: number
           team?: string
           user_id?: string | null
         }
@@ -137,7 +85,7 @@ export type Database = {
           starts_at: string
           timezone: string
           title: string | null
-          venue: string
+          venue: string | null
         }
         Insert: {
           created_at?: string
@@ -150,7 +98,7 @@ export type Database = {
           starts_at: string
           timezone: string
           title?: string | null
-          venue: string
+          venue?: string | null
         }
         Update: {
           created_at?: string
@@ -163,7 +111,7 @@ export type Database = {
           starts_at?: string
           timezone?: string
           title?: string | null
-          venue?: string
+          venue?: string | null
         }
         Relationships: []
       }
@@ -172,10 +120,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      claim_admin: {
-        Args: { p_match_id: string; p_token: string }
-        Returns: boolean
-      }
       create_match: {
         Args: {
           p_date: string
@@ -190,6 +134,15 @@ export type Database = {
         Returns: Json
       }
       get_match_preview: { Args: { p_match_id: string }; Returns: Json }
+      move_player_slot: {
+        Args: {
+          p_match_id: string
+          p_player_id: string
+          p_slot: number
+          p_team: string
+        }
+        Returns: undefined
+      }
       move_token: {
         Args: {
           p_match_id: string

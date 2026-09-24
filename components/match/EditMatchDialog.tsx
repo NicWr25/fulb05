@@ -7,9 +7,9 @@ import { PinIcon, XIcon } from "@/components/ui/icons";
 import { toLocalInputs } from "@/lib/domain/datetime";
 import { errorMessage } from "@/lib/domain/errors";
 import type { Match } from "@/lib/domain/match";
-import { LIMITS, normalizeMapsUrl, validateMatchInput, type CreateMatchInput } from "@/lib/domain/validation";
+import { LIMITS, normalizeMapsUrl, validateMatchInput, venueFromMapsUrl, type CreateMatchInput } from "@/lib/domain/validation";
 
-type Fields = Omit<CreateMatchInput, "format">;
+type Fields = Omit<CreateMatchInput, "format" | "title">;
 
 /**
  * "Editar datos del partido" (no está en el diseño; el spec lo pide).
@@ -33,10 +33,9 @@ export function useEditMatchDialog(
   function open() {
     const { date, time } = toLocalInputs(match.starts_at, match.timezone);
     setFields({
-      title: match.title ?? "",
       date,
       time,
-      venue: match.venue,
+      venue: match.venue ?? "",
       mapsUrl: match.maps_url ?? "",
       organizerName: match.organizer_name,
     });
@@ -46,7 +45,7 @@ export function useEditMatchDialog(
   }
 
   const original = toLocalInputs(match.starts_at, match.timezone);
-  const errors = fields ? validateMatchInput({ ...fields, format: match.format }) : {};
+  const errors = fields ? validateMatchInput({ ...fields, title: match.title ?? "", format: match.format }) : {};
   // Si no se tocó la fecha, no se exige que sea futura (ej. corregir la
   // cancha de un partido que ya empezó).
   if (fields && fields.date === original.date && fields.time === original.time) delete errors.date;
@@ -91,20 +90,13 @@ export function useEditMatchDialog(
               <XIcon size={18} />
             </button>
           </div>
-          <TextField
-            label="Nombre del partido"
-            labelNote="(opcional)"
-            maxLength={LIMITS.title}
-            value={fields.title}
-            onChange={(e) => set("title")(e.target.value)}
-            error={show("title")}
-          />
           <div className="grid grid-cols-2 gap-3">
             <TextField label="Día" type="date" value={fields.date} onChange={(e) => set("date")(e.target.value)} error={show("date")} />
             <TextField label="Hora" type="time" value={fields.time} onChange={(e) => set("time")(e.target.value)} error={show("time")} />
           </div>
           <TextField
             label="Cancha"
+            labelNote="(opcional)"
             maxLength={LIMITS.venue}
             value={fields.venue}
             onChange={(e) => set("venue")(e.target.value)}
@@ -112,12 +104,11 @@ export function useEditMatchDialog(
           />
           <TextField
             label="Ubicación en Google Maps"
-            labelNote="(opcional)"
             type="url"
             inputMode="url"
             icon={<PinIcon />}
             value={fields.mapsUrl}
-            onChange={(e) => set("mapsUrl")(e.target.value)}
+            onChange={(e) => setFields((old) => old ? { ...old, mapsUrl: e.target.value, venue: old.venue || venueFromMapsUrl(e.target.value) || "" } : old)}
             error={show("mapsUrl")}
           />
           <TextField

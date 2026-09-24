@@ -3,7 +3,7 @@
 -- transacción que al final se revierte: no deja datos.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(22);
 
 -- ---------------------------------------------------------------------------
 -- Preparación: usuarios de prueba y un helper para "loguearse"
@@ -32,22 +32,13 @@ select pg_temp.login('00000000-0000-0000-0000-00000000000a');
 insert into ctx
 select key, value
 from jsonb_each_text(public.create_match(
-  5, 'Fútbol del viernes', 'Cancha Parque', null,
+  5, 'Fútbol del viernes', 'Cancha Parque', 'https://maps.app.goo.gl/abc',
   current_date + 7, '21:00', 'America/Montevideo', 'Ana'));
 reset role;
 
 select matches(
   (select v from ctx where k = 'id'), '^[a-hjkmnp-z2-9]{8}$',
   'create_match devuelve un id de 8 caracteres del alfabeto sin ambiguos');
-select is(
-  char_length((select v from ctx where k = 'admin_token')), 43,
-  'create_match devuelve un token de admin base64url de 43 caracteres');
-select isnt(
-  (select encode(token_hash, 'hex') from public.match_admin_secrets
-   where match_id = (select v from ctx where k = 'id')),
-  (select v from ctx where k = 'admin_token'),
-  'en la base se guarda el hash del token, no el token');
-
 -- ---------------------------------------------------------------------------
 -- anon (sin sesión): no toca tablas; solo la vista previa por ID
 -- ---------------------------------------------------------------------------
@@ -160,8 +151,6 @@ select is(
 -- Tablas secretas
 -- ---------------------------------------------------------------------------
 select pg_temp.login('00000000-0000-0000-0000-00000000000a');
-select throws_ok('select * from public.match_admin_secrets', '42501', null,
-  'ni siquiera el admin puede leer los hashes de tokens');
 select throws_ok('select * from public.match_viewers', '42501', null,
   'match_viewers no es accesible directamente');
 
@@ -185,16 +174,11 @@ select pg_temp.login('00000000-0000-0000-0000-00000000000c');
 select throws_ok(
   format($$select public.reset_team_layout(%L, 'A')$$, (select v from ctx where k = 'id')),
   '42501', 'not_admin', 'alguien que no es admin no puede restablecer posiciones');
-select is(public.claim_admin((select v from ctx where k = 'id'), 'token-incorrecto'), false,
-  'claim_admin con un token incorrecto devuelve false');
-select is((select count(*)::int from public.match_admins), 0,
-  '... y no te hace admin');
-select is(
-  public.claim_admin((select v from ctx where k = 'id'), (select v from ctx where k = 'admin_token')),
-  true, 'claim_admin con el token correcto devuelve true');
-select is(
-  (select count(*)::int from public.match_admins where match_id = (select v from ctx where k = 'id')),
-  1, '... y Caro pasa a ser admin (solo ve su propia fila de match_admins)');
+select throws_ok(
+  format($$select public.move_player_slot(%L,
+    (select id from public.match_players where name = 'Pedro'), 'B', 1)$$,
+    (select v from ctx where k = 'id')),
+  '42501', 'not_admin', 'Caro no puede mover jugadores como administradora');
 reset role;
 
 select * from finish();

@@ -11,7 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 # fulb05 · Contexto para agentes
 
 App web mobile-first para armar partidos de fútbol 5/7 entre amigos. Alguien crea el
-partido, comparte `/p/[id]` por WhatsApp y cada uno se anota eligiendo equipo y puesto en
+partido, comparte `/p/[id]` por WhatsApp y cada uno se anota eligiendo equipo y lugar en
 una cancha, en vivo, sin registrarse. **Está en producción.** Leé también el `README.md`:
 explica la arquitectura, la seguridad y las decisiones técnicas en detalle.
 
@@ -91,23 +91,23 @@ commit → `pnpm supabase db push --dry-run` (revisar) → `pnpm supabase db pus
 
 - `matches`: `id` de 8 caracteres del alfabeto `abcdefghjkmnpqrstuvwxyz23456789` (sin
   i, l, o, 0, 1; un CHECK lo exige), `format` 5|7, `title` (null = título por defecto),
-  `venue`, `maps_url`, `starts_at` timestamptz + `timezone` IANA, `organizer_name`,
+  `venue` (opcional), `maps_url` (obligatorio en altas/edición), `starts_at` timestamptz + `timezone` IANA, `organizer_name`,
   `layout` jsonb **NOT NULL** con las posiciones de las fichas.
-- `match_players`: `team` `'A'|'B'`, `slot` 0..format-1 (**null = banco**), `user_id`
-  (null = agregado por el organizador), `bench_since`. `UNIQUE(match_id, team, slot)`
+- `match_players`: `team` `'A'|'B'`, `slot` 0..format-1 (NOT NULL), `user_id`
+  (null = agregado por el organizador). `UNIQUE(match_id, team, slot)`
   resuelve carreras por el mismo lugar; `UNIQUE(match_id, user_id)` = una inscripción
   por persona.
-- `match_admins`, `match_viewers` ("el link es la llave": solo lee quien llamó a
-  `open_match`), `match_admin_secrets` (hash SHA-256 del token de admin; sin políticas).
-- RPC: `create_match`, `open_match`, `claim_admin`, `get_match_preview` (única para
-  `anon`, la usa el servidor), `update_match`, `move_token`, `reset_team_layout`.
-- Triggers: cierre a la hora de inicio (`match_closed`), `slot < format`, tope de 6 en el
-  banco, **ascenso automático del banco** y advisory lock por partido. Insertar con
-  `slot: null` = "primer lugar libre o banco" (lo resuelve la base).
+- `match_viewers` ("el link es la llave": solo lee quien llamó a `open_match`).
+  La administración depende de `matches.created_by = auth.uid()`.
+- RPC: `create_match`, `open_match`, `get_match_preview` (única para
+  `anon`, la usa el servidor), `update_match`, `move_token`, `move_player_slot`, `reset_team_layout`.
+- Triggers: cierre a la hora de inicio (`match_closed`), `slot < format`, capacidad
+  exacta de 5/7 por equipo y advisory lock por partido. Insertar con `slot: null` = primer lugar libre
+  o error `team_full` (lo resuelve la base).
 - `pg_cron` corre `private.purge_expired()` todos los días a las 07:15 UTC (partidos de
   hace más de 7 días y usuarios anónimos huérfanos de más de 30).
 - Errores: los triggers/RPC lanzan `P0001` con un `message` corto (`match_closed`,
-  `bench_full`, `wrong_half`, `not_your_token`…) que `lib/domain/errors.ts` traduce.
+  `team_full`, `wrong_half`, `not_your_token`…) que `lib/domain/errors.ts` traduce.
 
 ## Mapa del código
 
@@ -124,7 +124,7 @@ commit → `pnpm supabase db push --dry-run` (revisar) → `pnpm supabase db pus
 - `components/match/MatchClient.tsx` elige `OrganizerView` o `PlayerView`, maneja el
   cierre en vivo y el banner de conexión. `MatchLayout.tsx` usa `grid-template-areas`
   (orden del DOM = celular; en `lg` la cancha va a la derecha) con slots `header`,
-  `stat`, `pitch`, `card`, `rosters`, `share`.
+  `stat`, `pitch`, `card`, `share`.
 - `components/match/MatchPitch.tsx` — cancha interactiva genérica con `canDrag(ref,
   player)` / `canSelect(ref, player)`, `onSelect`, `onMove`. Arrastre con pointer events,
   flechas del teclado como alternativa, sombra en la mitad rival, estado `pending` hasta
@@ -144,7 +144,6 @@ commit → `pnpm supabase db push --dry-run` (revisar) → `pnpm supabase db pus
   `next typegen` antes de `tsc`. `params` es una Promise.
 - React Compiler lint: nada de `setState` sincrónico en efectos ni `Date.now()` en el
   render (usá el patrón "estado del render anterior" o la hora de Postgres `server_now`).
-- StrictMode monta los efectos dos veces en desarrollo (ver `app/p/[id]/admin/ClaimAdmin.tsx`).
 - `openGraph` de una página **reemplaza** (no combina) al del layout raíz.
 - Las funciones SQL que usan `jsonb_build_object` son `STABLE`, no `IMMUTABLE`
   (`supabase db lint` lo marca).
@@ -157,107 +156,18 @@ commit → `pnpm supabase db push --dry-run` (revisar) → `pnpm supabase db pus
 
 ---
 
-## TAREA PENDIENTE (aprobada, sin implementar): UI minimalista, Blanco/Negro y fichas solo propias
+## Estado actual de la UI y reglas
 
-Pedido de Nico: que la app "sirva para armar partidos, sin información que no es
-relevante a primeras". Mandó un **mockup** (no es código existente): una barra con el
-input "Nombre del jugador" y un botón "+ Agregar" **arriba de la cancha**, sin card.
-
-Decisiones ya confirmadas por Nico:
-- Sin puesto elegido, el equipo lo define un **selector chico Blanco/Negro** (no se
-  asigna solo al que tiene menos).
-- La regla de arrastre vale **también para el organizador**.
-- La barra mínima reemplaza **también** la card "Anotate" del jugador.
-
-### 1. Solo tu propia ficha (base + cliente)
-- **Migración nueva** `supabase/migrations/20260925000100_own_token_only.sql` con
-  `create or replace function public.move_token(p_match_id text, p_team text, p_slot
-  integer, p_x numeric, p_y numeric)`: se saca la excepción de admin (hoy en
-  `20260924000700_player_positions.sql`, variable `v_admin`). Para **todos**: la ficha
-  tiene que ser del que llama (`match_players.user_id = auth.uid()` en ese team/slot →
-  si no, `42501 not_your_token`), el partido no empezó (`match_closed`) y el punto queda
-  en su mitad (`wrong_half`) y dentro de 0..100 (`invalid_layout`). Conservar
-  `security definer`, `set search_path = ''` y los grants (execute solo `authenticated`).
-  `reset_team_layout` (solo admin) **no cambia**.
-- `components/match/OrganizerView.tsx`: `canDrag` pasa de `() => true` a la misma regla
-  que `PlayerView` (`!closed && player?.id === me?.id`). `canSelect` sigue `() => true`.
-  Actualizar el texto de ayuda bajo la cancha.
-- `supabase/tests/04_positions.test.sql`: "el admin puede mover un lugar libre" →
-  espera `not_your_token`; "el admin sí puede seguir acomodando" (partido empezado) →
-  `match_closed`; el caso de mitades del admin se reescribe con **su propia ficha**
-  (anotarlo primero); agregar "el admin no puede mover la ficha de otro jugador". Ajustar
-  `plan(n)`.
-
-### 2. Equipos Blanco / Negro
-- `lib/domain/teams.ts`: `TEAM_LABEL = { A: "Blanco", B: "Negro" }` y nuevo
-  `TEAM_IN = { A: "el equipo blanco", B: "el equipo negro" }` para frases ("Jugás de
-  defensa en el equipo blanco", "El equipo negro está completo: …"). Los ids `A`/`B` no
-  cambian (la base no se toca).
-- `app/globals.css`: `--color-team-a: #ffffff` (texto `ink`) y `--color-team-b:
-  #16181d` (texto blanco). `TEAM_TOKEN_CLASS` en `teams.ts` ya usa `text-ink`/`text-white`.
-- Usar `TEAM_IN` donde hoy se arman frases con `TEAM_LABEL`: `PlayerView.tsx`,
-  `OrganizerView.tsx`, `MyEntryCard` (vía `PlayerView`), `MatchPitch.tsx` (aria-labels).
-  `TeamLegend.tsx`, `Rosters.tsx`, `TeamToggle.tsx` siguen con `TEAM_LABEL`.
-- `app/p/[id]/opengraph-image.tsx`: constantes `C.teamA/teamB` y etiquetas "Claros" /
-  "Oscuros" → Blanco/Negro. También `app/dev/ui/UiGallery.tsx`.
-- Comentarios y descripciones de tests TS que digan "Claros/Oscuros". **No** edites las
-  migraciones viejas.
-
-### 3. Barra mínima arriba de la cancha
-- Componente nuevo `components/match/QuickAddBar.tsx`, que reemplaza a
-  `components/match/AddPlayerCard.tsx` y `components/match/JoinCard.tsx` (borrarlos):
-  - Fila 1: input de nombre (label **visualmente oculto** `sr-only` para accesibilidad;
-    placeholder "Nombre del jugador" en el organizador / "Tu nombre" en el jugador;
-    `maxLength={LIMITS.name}`) + botón negro "+ Agregar" / "Anotarme" (pasa a "Al banco"
-    si el equipo destino está lleno y no hay puesto libre elegido; "Conectando…"
-    deshabilitado mientras `status !== "ready"`).
-  - Fila 2: selector chico Blanco/Negro (dos chips con `TeamSwatch`, alto ≥ 44 px,
-    `aria-pressed`) + una línea `aria-live` de altura fija con la ayuda ("Va de defensa
-    en el equipo negro") o el error (`errorMessage`, ej. "Ese lugar lo acaba de ocupar…").
-  - Enter envía. Reusar `playerNameError`, `LIMITS`, `TeamSwatch`, `cx`, tokens de diseño.
-- Ubicación: en el slot `pitch` de `MatchLayout`, **arriba** de la leyenda y la cancha,
-  en celular y escritorio. El slot `card` queda solo para `MyEntryCard` (jugador ya
-  anotado), la card de partido cerrado/"Reprogramar" y la de error de conexión.
-- Organizador: "¿Jugás vos? Anotarme como {nombre}" pasa a un link chico debajo de la
-  barra; si ya está anotado: "Estás como X · Bajarme". Mantener `TeamBars` (leyenda +
-  restablecer posiciones) pero compacto en una sola línea.
-- La lógica de destino ya existe: `target()` en `OrganizerView` (puesto elegido si está
-  libre; si no `slot: null`) y `join()` en `PlayerView`. No duplicar: la barra recibe
-  callbacks/props.
-
-### 4. Nombre del partido
-- `lib/domain/share.ts`: `matchTitle(title, organizerName)` →
-  `title?.trim() || \`Partido de ${organizerName}\``. Actualizar los 4 usos:
-  `app/p/[id]/page.tsx`, `PlayerView.tsx`, `OrganizerView.tsx`, `lib/domain/og.ts`
-  (`weekday` deja de hacer falta ahí). Como `title` null se calcula al vuelo, si cambia
-  `organizer_name` el título lo sigue.
-- `components/create/CreateMatchForm.tsx`: sacar el campo "Nombre del partido" (sigue
-  mandando `p_title: ""`, que la RPC guarda como null). El resumen de la pantalla de
-  éxito usa `Partido de {organizerName}`. Sin cambios en la base.
-- Edición en línea en `components/match/MatchHeader.tsx`: prop opcional
-  `onRenameTitle(title: string): Promise<void>`. Si viene (organizador), el `h1`
-  contiene un botón con el título + `EditIcon`; al tocarlo, input + Guardar/Cancelar
-  (Enter guarda, Esc cancela, vacío = volver al título por defecto → `p_title: ""`),
-  máximo `LIMITS.title` (60). Guardar con `update_match` reusando `details()` de
-  `OrganizerView` con `p_title` nuevo, y después `reload()`.
-- `components/match/EditMatchDialog.tsx`: sacar el campo título (queda día, hora,
-  cancha, Maps y organizador). Seguir mandando el título actual en `update_match`.
-
-### Tests a actualizar
-- `tests/unit/match.test.ts` (`matchTitle` → "Partido de Nico"), `tests/unit/og.test.ts`
-  (`title` de `ogImageData`), test nuevo para `TEAM_LABEL`/`TEAM_IN`.
-- pgTAP `04_positions.test.sql` según el punto 1.
-- `tests/integration/positions.test.ts` debería seguir pasando (cada jugador mueve la suya).
-
-### Verificación
-1. `pnpm db:reset` → `pnpm db:test` → `pnpm test` → `pnpm test:integration` →
-   `pnpm lint` → `pnpm typecheck` → `pnpm build` → `pnpm supabase db lint --level warning`.
-2. En el navegador (preset mobile y 1280 px): crear partido sin nombre ("Partido de
-   Nico"); renombrar el título desde el panel, recargar y ver que persiste; vaciarlo y
-   que vuelva al default; barra mínima con y sin puesto elegido y con equipo lleno ("Al
-   banco"); el organizador **no** puede arrastrar fichas ajenas ni puestos libres, sí la
-   suya; jugador: barra "Anotarme" → `MyEntryCard`, arrastra solo la suya; colores y
-   textos Blanco/Negro; controles ≥ 44 px.
-3. Mostrarle el resultado a Nico y **esperar su OK**. Recién ahí: commit →
-   `pnpm supabase db push --dry-run` → `pnpm supabase db push` → `git push` → verificar
-   el CI en verde y https://fulb05.vercel.app.
+La rama de trabajo implementa la UI minimalista Blanco/Negro y el plan posterior de Nico:
+- El organizador elige equipo y se anota antes de compartir. Admin = `created_by = auth.uid()`;
+  no existe enlace secreto ni recuperación desde otra sesión.
+- El organizador puede arrastrar cualquier ficha ocupada y mover jugadores a lugares
+  libres, incluso al otro equipo; no puede bajarse.
+- Cada equipo admite exactamente 5 o 7 jugadores. No hay suplentes: `slot` es NOT NULL.
+  Insertar con `slot: null` asigna el primer lugar libre en el trigger o falla `team_full`.
+- La barra para anotarse y la confirmación de la propia inscripción van arriba de la
+  cancha. Los lugares libres se numeran del 1 al formato; no hay roles ni listas abajo.
+- Google Maps es obligatorio al crear/editar; el nombre de la cancha es opcional y se
+  extrae localmente de enlaces largos `/maps/place/` cuando es posible.
+- Migración nueva: `20260925000100_simplify_matches.sql`. No editar migraciones previas.
+- Antes de commit, `db push` o `git push`, mostrar el trabajo y esperar OK de Nico.

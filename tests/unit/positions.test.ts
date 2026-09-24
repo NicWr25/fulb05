@@ -7,19 +7,8 @@ import {
   inOwnHalf,
   initials,
   resolveLayout,
-  slotRoles,
   toScreen,
 } from "@/lib/domain/positions";
-
-describe("slotRoles", () => {
-  it("fútbol 5 = ARQ + 2 DEF + 2 DEL", () => {
-    expect(slotRoles(5)).toEqual(["ARQ", "DEF", "DEF", "DEL", "DEL"]);
-  });
-
-  it("fútbol 7 = ARQ + 3 DEF + 2 MED + 1 DEL", () => {
-    expect(slotRoles(7)).toEqual(["ARQ", "DEF", "DEF", "DEF", "MED", "MED", "DEL"]);
-  });
-});
 
 describe("defaultTeamLayout", () => {
   it("devuelve un punto por lugar", () => {
@@ -27,11 +16,11 @@ describe("defaultTeamLayout", () => {
     expect(defaultTeamLayout(7, "B")).toHaveLength(7);
   });
 
-  it("pone al arquero de Claros junto a su arco (x chico) y centrado", () => {
+  it("pone al arquero de Blanco junto a su arco (x chico) y centrado", () => {
     expect(defaultTeamLayout(7, "A")[0]).toEqual({ x: 5.5, y: 50 });
   });
 
-  it("Oscuros es el espejo de Claros a lo largo de la cancha", () => {
+  it("Negro es el espejo de Blanco a lo largo de la cancha", () => {
     const a = defaultTeamLayout(7, "A");
     const b = defaultTeamLayout(7, "B");
     b.forEach((p, i) => {
@@ -77,7 +66,7 @@ describe("toScreen / fromScreen", () => {
     expect(toScreen({ x: 10, y: 20 }, "horizontal")).toEqual({ left: 10, top: 20 });
   });
 
-  it("vertical (celular): el arco de Claros (x = 0) queda abajo", () => {
+  it("vertical (celular): el arco de Blanco (x = 0) queda abajo", () => {
     expect(toScreen({ x: 0, y: 50 }, "vertical")).toEqual({ left: 50, top: 100 });
     expect(toScreen({ x: 100, y: 50 }, "vertical")).toEqual({ left: 50, top: 0 });
   });
@@ -104,7 +93,7 @@ describe("initials", () => {
 });
 
 describe("mitades de la cancha", () => {
-  it("Claros juegan en x ≤ 50 y Oscuros en x ≥ 50 (la línea del medio vale para los dos)", () => {
+  it("Blanco juegan en x ≤ 50 y Negro en x ≥ 50 (la línea del medio vale para los dos)", () => {
     expect(inOwnHalf("A", { x: 50, y: 10 })).toBe(true);
     expect(inOwnHalf("A", { x: 50.1, y: 10 })).toBe(false);
     expect(inOwnHalf("B", { x: 50, y: 10 })).toBe(true);

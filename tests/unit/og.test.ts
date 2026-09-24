@@ -16,7 +16,6 @@ const match: Match = {
   players: [
     { id: "1", name: "A", team: "A", slot: 0 },
     { id: "2", name: "B", team: "B", slot: 1 },
-    { id: "3", name: "C", team: "B", slot: null },
   ],
 };
 
@@ -25,7 +24,7 @@ describe("Open Graph", () => {
     expect(ogTitle(match)).toBe("Fútbol 5 · Jueves 21:00 · Cancha X");
   });
 
-  it("descripción: faltan N (el banco no cuenta) y quién organiza", () => {
+  it("descripción: faltan N y quién organiza", () => {
     expect(ogDescription(match)).toBe("Faltan 8 jugadores · Organiza Nico. ¡Anotate!");
     expect(ogDescription({ ...match, title: "Fulbito" })).toBe("Fulbito · Faltan 8 jugadores · Organiza Nico. ¡Anotate!");
   });
@@ -36,6 +35,6 @@ describe("Open Graph", () => {
 
   it("datos de la imagen: titulares por equipo", () => {
     const d = ogImageData(match);
-    expect(d).toMatchObject({ title: "Partido del jueves", claros: 1, oscuros: 1, missing: 8 });
+    expect(d).toMatchObject({ title: "Partido de Nico", claros: 1, oscuros: 1, missing: 8 });
   });
 });

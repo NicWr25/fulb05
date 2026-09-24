@@ -38,7 +38,7 @@ describe("carreras por el mismo lugar", () => {
       p_format: 5,
       p_title: "",
       p_venue: "Cancha de test",
-      p_maps_url: "",
+      p_maps_url: "https://maps.app.goo.gl/abc",
       p_date: nextWeek(),
       p_time: "21:00",
       p_timezone: "America/Montevideo",
@@ -84,13 +84,12 @@ describe("carreras por el mismo lugar", () => {
       [bruno, caro].map((c, i) =>
         c.sb
           .from("match_players")
-          .insert({ match_id: matchId, user_id: c.uid, name: i === 0 ? "Bruno" : "Caro", team: "B", slot: null })
+          .insert({ match_id: matchId, user_id: c.uid, name: i === 0 ? "Bruno" : "Caro", team: "B", slot: null as unknown as number })
           .select("slot")
           .single(),
       ),
     );
-    // El INSERT devuelve la fila recién insertada (slot null); el lugar lo asigna
-    // el trigger AFTER, así que se relee.
+    // El trigger BEFORE asigna el primer lugar libre antes de guardar.
     for (const r of results) expect(r.error).toBeNull();
 
     const { data } = await ana.sb

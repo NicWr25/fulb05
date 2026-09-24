@@ -4,7 +4,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 const STEPS = [
   "Creá el partido: día, hora y cancha.",
   "Mandá el enlace al grupo.",
-  "Cada uno elige su puesto en la cancha.",
+  "Cada uno elige un lugar en la cancha.",
 ];
 
 // Diseño: design/crear-partido-{celular,escritorio}.dc.html
@@ -19,7 +19,7 @@ export default function Home() {
           Pasá el enlace.
         </h1>
         <p className="text-16 leading-normal text-ink-2 lg:max-w-[520px] lg:text-19">
-          Cada uno se anota solo, en su equipo y en su puesto.
+          Cada uno se anota solo, en su equipo y en un lugar libre.
         </p>
         {/* Los 3 pasos solo aparecen en escritorio, como en el diseño. */}
         <ol className="mt-2 hidden flex-col gap-4 lg:flex">

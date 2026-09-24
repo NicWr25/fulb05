@@ -10,14 +10,12 @@ import {
   fromScreen,
   initials,
   resolveLayout,
-  ROLE_NAME,
-  slotRoles,
   toScreen,
   type Layout,
   type Orientation,
   type Point,
 } from "@/lib/domain/positions";
-import { TEAMS, TEAM_LABEL, type Team } from "@/lib/domain/teams";
+import { TEAMS, TEAM_IN, type Team } from "@/lib/domain/teams";
 
 export type SlotRef = { team: Team; slot: number };
 
@@ -85,7 +83,6 @@ export function MatchPitch({
   }
 
   const layout: Layout = resolveLayout(match.format, match.layout);
-  const roles = slotRoles(match.format);
   const slots = slotsByTeam(match);
   const same = (a: SlotRef | null | undefined, b: SlotRef) => a?.team === b.team && a.slot === b.slot;
 
@@ -165,8 +162,7 @@ export function MatchPitch({
           const selectable = canSelect(ref, player);
           const isSelected = same(selected, ref);
           const isDragging = same(dragging, ref);
-          const role = ROLE_NAME[roles[slot]];
-          const who = player ? `${mine ? "Vos" : player.name}, ${role} de ${TEAM_LABEL[team]}` : `Puesto libre de ${role} en ${TEAM_LABEL[team]}`;
+          const who = player ? `${mine ? "Vos" : player.name} en ${TEAM_IN[team]}` : `Lugar ${slot + 1} libre en ${TEAM_IN[team]}`;
           const label = draggable ? `${who}. Arrastrá o usá las flechas para moverla en tu mitad.` : who;
 
           return (
@@ -174,7 +170,7 @@ export function MatchPitch({
               <PlayerToken
                 team={team}
                 playerName={player?.name}
-                text={player ? initials(player.name) : roles[slot]}
+                text={player ? initials(player.name) : String(slot + 1)}
                 mine={mine}
                 selected={isSelected}
                 dragging={isDragging}

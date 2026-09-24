@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { benchOf, missingCount, missingLabel, slotsByTeam, type Player } from "@/lib/domain/match";
+import { missingCount, missingLabel, slotsByTeam, type Player } from "@/lib/domain/match";
 import { inviteMessage, matchTitle, whatsappUrl } from "@/lib/domain/share";
 
-const p = (id: string, team: "A" | "B", slot: number | null): Player => ({ id, name: id, team, slot });
+const p = (id: string, team: "A" | "B", slot: number): Player => ({ id, name: id, team, slot });
 
 describe("match", () => {
-  const match = { format: 5 as const, players: [p("a0", "A", 0), p("a3", "A", 3), p("b1", "B", 1), p("ab", "A", null)] };
+  const match = { format: 5 as const, players: [p("a0", "A", 0), p("a3", "A", 3), p("b1", "B", 1)] };
 
   it("ubica a los titulares en su lugar y deja null los libres", () => {
     const s = slotsByTeam(match);
@@ -13,8 +13,7 @@ describe("match", () => {
     expect(s.B.map((x) => x?.id ?? null)).toEqual([null, "b1", null, null, null]);
   });
 
-  it("el banco no cuenta como lugar ocupado", () => {
-    expect(benchOf(match, "A").map((x) => x.id)).toEqual(["ab"]);
+  it("cuenta los lugares libres", () => {
     expect(missingCount(match)).toBe(7);
   });
 
@@ -35,8 +34,8 @@ describe("share", () => {
   });
 
   it("título por defecto si no hay nombre", () => {
-    expect(matchTitle(null, "viernes")).toBe("Partido del viernes");
-    expect(matchTitle("  ", "jueves")).toBe("Partido del jueves");
+    expect(matchTitle(null, "Nico")).toBe("Partido de Nico");
+    expect(matchTitle("  ", "Ana")).toBe("Partido de Ana");
     expect(matchTitle("Fulbito", "jueves")).toBe("Fulbito");
   });
 });

@@ -4,7 +4,7 @@ import { TEAM_TOKEN_CLASS, type Team } from "@/lib/domain/teams";
 
 export type PlayerTokenProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "name"> & {
   team: Team;
-  /** Texto dentro de la ficha: iniciales (ocupado) o rol (libre: ARQ, DEF...). */
+  /** Texto dentro de la ficha: iniciales (ocupado) o número (libre). */
   text: string;
   /** Nombre para la etiqueta de abajo; si no hay, es un lugar libre. */
   playerName?: string | null;

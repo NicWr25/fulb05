@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isValidMapsUrl,
   normalizeMapsUrl,
+  venueFromMapsUrl,
   playerNameError,
   validateMatchInput,
   type CreateMatchInput,
@@ -14,18 +15,18 @@ const OK: CreateMatchInput = {
   date: "2026-09-26",
   time: "21:00",
   venue: "Cancha Parque",
-  mapsUrl: "",
+  mapsUrl: "https://maps.app.goo.gl/abc",
   organizerName: "Nico",
 };
 
 describe("validateMatchInput", () => {
-  it("acepta un partido válido (título y Maps opcionales)", () => {
+  it("acepta un partido válido (título y cancha opcionales)", () => {
     expect(validateMatchInput(OK, NOW)).toEqual({});
   });
 
-  it("pide día, hora, cancha y nombre", () => {
-    const e = validateMatchInput({ ...OK, date: "", time: "", venue: "  ", organizerName: "" }, NOW);
-    expect(Object.keys(e).sort()).toEqual(["date", "organizerName", "time", "venue"]);
+  it("pide día, hora, Maps y nombre", () => {
+    const e = validateMatchInput({ ...OK, date: "", time: "", mapsUrl: "  ", organizerName: "" }, NOW);
+    expect(Object.keys(e).sort()).toEqual(["date", "mapsUrl", "organizerName", "time"]);
   });
 
   it("rechaza fechas pasadas o a más de un año", () => {
@@ -59,6 +60,11 @@ describe("enlaces de Google Maps", () => {
   ])("%s -> %s", (url, ok) => {
     expect(isValidMapsUrl(url)).toBe(ok);
   });
+});
+
+it("extrae el nombre de enlaces largos y deja los cortos sin nombre", () => {
+  expect(venueFromMapsUrl("https://www.google.com/maps/place/Cancha+Parque/@-34,56")).toBe("Cancha Parque");
+  expect(venueFromMapsUrl("https://maps.app.goo.gl/abc")).toBeNull();
 });
 
 describe("playerNameError", () => {

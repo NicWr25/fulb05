@@ -6,8 +6,7 @@ export type Player = {
   id: string;
   name: string;
   team: Team;
-  /** null = banco de suplentes */
-  slot: number | null;
+  slot: number;
   /** Solo disponible con sesión (lectura directa de la tabla); el preview del servidor no lo trae. */
   user_id?: string | null;
 };
@@ -17,13 +16,14 @@ export type Match = {
   id: string;
   format: Format;
   title: string | null;
-  venue: string;
+  venue: string | null;
   maps_url: string | null;
   starts_at: string;
   timezone: string;
   organizer_name: string;
   layout: Layout | null;
   players: Player[];
+  created_by?: string | null;
 };
 
 /** IDs válidos: mismo patrón que el CHECK de matches.id. */
@@ -41,15 +41,9 @@ export function slotsByTeam(match: Pick<Match, "format" | "players">): Record<Te
   return slots;
 }
 
-/** Suplentes de un equipo, en el orden en que vinieron (el servidor ya los ordena). */
-export function benchOf(match: Pick<Match, "players">, team: Team): Player[] {
-  return match.players.filter((p) => p.team === team && p.slot === null);
-}
-
 /** Cuántos lugares libres quedan en la cancha (entre los dos equipos). */
 export function missingCount(match: Pick<Match, "format" | "players">): number {
-  const onPitch = match.players.filter((p) => p.slot !== null).length;
-  return Math.max(0, match.format * 2 - onPitch);
+  return Math.max(0, match.format * 2 - match.players.length);
 }
 
 export function missingLabel(missing: number): string {

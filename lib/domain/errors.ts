@@ -13,7 +13,12 @@ type AnyError = { code?: string; message?: string; status?: number; name?: strin
 
 const BY_MESSAGE: Record<string, string> = {
   match_closed: "Las inscripciones ya cerraron: el partido empezó.",
-  bench_full: "El banco de ese equipo está lleno (máximo 6).",
+  team_full: "Ese equipo está completo. Elegí el otro equipo.",
+  maps_required: "Pegá el enlace de Google Maps.",
+  format_too_small: "Hay más jugadores que lugares para ese formato.",
+  organizer_must_play: "El organizador tiene que formar parte del partido.",
+  player_not_found: "Ese jugador ya no está en el partido.",
+  slot_taken: "Ese lugar ya está ocupado.",
   rate_limited: "Creaste muchos partidos seguidos. Probá de nuevo mañana.",
   invalid_starts_at: "La fecha tiene que ser futura y dentro del próximo año.",
   invalid_timezone: "No pudimos reconocer tu zona horaria.",

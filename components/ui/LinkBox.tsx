@@ -3,21 +3,16 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { cx } from "@/lib/cx";
 
-/**
- * Caja con un enlace y un botón "Copiar".
- * tone="admin": fondo amarillo de advertencia (enlace secreto de organizador).
- */
+/** Caja con un enlace y un botón para copiarlo. */
 export function LinkBox({
   title,
   url,
   note,
-  tone = "public",
   displayUrl,
 }: {
   title: string;
   url: string;
   note?: ReactNode;
-  tone?: "public" | "admin";
   /** Texto a mostrar si no se quiere mostrar la URL completa. */
   displayUrl?: string;
 }) {
@@ -40,12 +35,11 @@ export function LinkBox({
     }
   }
 
-  const admin = tone === "admin";
   return (
     <div
       className={cx(
         "flex flex-col gap-2 rounded-box p-4",
-        admin ? "border border-admin-border bg-me-bg" : "bg-cream",
+        "bg-cream",
       )}
     >
       <div className="text-15 font-semibold">{title}</div>
@@ -53,7 +47,7 @@ export function LinkBox({
         <div
           className={cx(
             "flex h-11 min-w-0 grow items-center truncate rounded-field border bg-surface px-3 text-14",
-            admin ? "border-admin-border" : "border-line",
+            "border-line",
           )}
         >
           <span className="truncate">{displayUrl ?? url}</span>
@@ -63,7 +57,7 @@ export function LinkBox({
           onClick={copy}
           className={cx(
             "h-11 shrink-0 rounded-field px-4 text-15 font-semibold",
-            admin ? "border border-ink bg-surface text-ink" : "border-0 bg-ink text-white",
+            "border-0 bg-ink text-white",
           )}
         >
           {copied ? "Copiado" : "Copiar"}
@@ -74,7 +68,7 @@ export function LinkBox({
         {copied ? "Enlace copiado" : ""}
       </span>
       {note && (
-        <div className={cx("text-13 leading-[1.45]", admin ? "text-admin-ink" : "text-ink-2")}>{note}</div>
+        <div className={cx("text-13 leading-[1.45]", "text-ink-2")}>{note}</div>
       )}
     </div>
   );

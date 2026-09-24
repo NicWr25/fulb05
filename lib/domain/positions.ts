@@ -5,47 +5,26 @@ import type { Format, Team } from "./teams";
  *
  * Sistema de coordenadas "canónico" (el que se guarda en matches.layout):
  * la cancha APAISADA, en porcentaje.
- *   x: a lo largo, 0 = arco de Claros (A), 100 = arco de Oscuros (B)
+ *   x: a lo largo, 0 = arco de Blanco (A), 100 = arco de Negro (B)
  *   y: a lo ancho, 0 = arriba, 100 = abajo
  *
  * En escritorio la cancha se dibuja así tal cual. En el celular se dibuja
- * PARADA, con Claros defendiendo el arco de abajo: ver toScreen().
+ * PARADA, con Blanco defendiendo el arco de abajo: ver toScreen().
  */
 export type Point = { x: number; y: number };
-export type Role = "ARQ" | "DEF" | "MED" | "DEL";
 export type Layout = Record<Team, Point[]>;
 export type Orientation = "vertical" | "horizontal";
 
-export const ROLE_NAME: Record<Role, string> = {
-  ARQ: "arquero",
-  DEF: "defensa",
-  MED: "mediocampo",
-  DEL: "delantero",
-};
-
 /**
- * Formación por defecto de cada formato (jugadores de campo por línea,
- * de atrás hacia adelante). El arquero va aparte.
- * No hay selector de formaciones en el MVP: cada jugador acomoda su ficha
- * arrastrándola (dentro de su mitad), y el organizador puede acomodar todas.
+ * Distribución visual inicial de las fichas por línea, de atrás hacia adelante.
+ * No asigna roles a los lugares: cada persona acomoda su ficha en su mitad.
  */
-export const DEFAULT_FORMATION: Record<Format, readonly number[]> = {
+export const DEFAULT_LINES: Record<Format, readonly number[]> = {
   5: [2, 2],
   7: [3, 2, 1],
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
-
-/** Rol de cada lugar (slot) según la formación: 0 = ARQ, después línea por línea. */
-export function slotRoles(format: Format): Role[] {
-  const lines = DEFAULT_FORMATION[format];
-  const roles: Role[] = ["ARQ"];
-  lines.forEach((count, i) => {
-    const role: Role = i === 0 ? "DEF" : i === lines.length - 1 ? "DEL" : "MED";
-    for (let j = 0; j < count; j++) roles.push(role);
-  });
-  return roles;
-}
 
 /**
  * Disposición por defecto de un equipo (mismo algoritmo que los prototipos):
@@ -54,7 +33,7 @@ export function slotRoles(format: Format): Role[] {
  * El equipo B es el espejo de A.
  */
 export function defaultTeamLayout(format: Format, team: Team): Point[] {
-  const lines = DEFAULT_FORMATION[format];
+  const lines = DEFAULT_LINES[format];
   const points: Point[] = [{ x: 5.5, y: 50 }];
   lines.forEach((count, i) => {
     const x = lines.length === 1 ? 30 : 17 + i * (25 / (lines.length - 1));
@@ -79,7 +58,7 @@ export function resolveLayout(format: Format, saved: Layout | null | undefined):
 /**
  * Coordenadas canónicas -> posición en pantalla (left/top en %).
  * Vertical (celular): lo ancho pasa a ser horizontal, y lo largo se invierte
- * para que el arco de Claros (x = 0) quede ABAJO (top = 100%).
+ * para que el arco de Blanco (x = 0) quede ABAJO (top = 100%).
  */
 export function toScreen(p: Point, orientation: Orientation): { left: number; top: number } {
   return orientation === "horizontal" ? { left: p.x, top: p.y } : { left: p.y, top: 100 - p.x };
@@ -93,8 +72,8 @@ export function fromScreen(left: number, top: number, orientation: Orientation):
 export const clampPercent = (n: number, min = 3, max = 97) => Math.min(max, Math.max(min, n));
 
 /**
- * Mitad de la cancha de cada equipo (en x canónica): Claros juegan en x ≤ 50,
- * Oscuros en x ≥ 50. Misma regla que private.in_own_half() en la base.
+ * Mitad de la cancha de cada equipo (en x canónica): Blanco juegan en x ≤ 50,
+ * Negro en x ≥ 50. Misma regla que private.in_own_half() en la base.
  */
 export const MIDFIELD = 50;
 

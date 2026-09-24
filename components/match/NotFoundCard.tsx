@@ -1,11 +1,9 @@
 import Link from "next/link";
-import { Eyebrow } from "@/components/ui/Eyebrow";
 
 /** Estado no cubierto por el diseño: partido inexistente o ya borrado. */
 export function NotFoundCard({ title, body }: { title: string; body: string }) {
   return (
     <main className="mx-auto flex w-full max-w-[440px] flex-col gap-4 px-4 pt-10 pb-8">
-      <Eyebrow>Partido entre amigos</Eyebrow>
       <h1 className="font-display text-30 leading-[1.05] font-extrabold">{title}</h1>
       <p className="text-16 leading-normal text-ink-2">{body}</p>
       <Link

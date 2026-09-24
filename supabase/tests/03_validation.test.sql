@@ -1,7 +1,7 @@
 -- Tests de validaciones (CHECK) y límites contra abuso.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(12);
 
 insert into auth.users (id, aud, role, email) values
   ('00000000-0000-0000-0000-00000000000a', 'authenticated', 'authenticated', 'ana@test.local');
@@ -16,7 +16,7 @@ $$;
 
 -- Crea un partido con valores por defecto, cambiando lo que se pase.
 create function pg_temp.new_match(
-  p_format int default 5, p_venue text default 'Cancha', p_maps text default null,
+  p_format int default 5, p_venue text default 'Cancha', p_maps text default 'https://maps.app.goo.gl/abc',
   p_date date default current_date + 7, p_tz text default 'America/Montevideo',
   p_name text default 'Ana', p_title text default null
 ) returns text language sql as $$
@@ -34,12 +34,14 @@ select pg_temp.login('00000000-0000-0000-0000-00000000000a');
 -- ---------------------------------------------------------------------------
 select throws_ok($$select pg_temp.new_match(p_format => 6)$$, '23514', null,
   'el formato solo puede ser 5 o 7');
-select throws_ok($$select pg_temp.new_match(p_venue => '   ')$$, '23502', null,
-  'la cancha es obligatoria (espacios solos cuentan como vacío)');
+select lives_ok($$select pg_temp.new_match(p_venue => '   ')$$,
+  'el nombre de la cancha es opcional');
 select throws_ok($$select pg_temp.new_match(p_venue => repeat('x', 81))$$, '23514', null,
   'la cancha tiene hasta 80 caracteres');
 select throws_ok($$select pg_temp.new_match(p_name => repeat('x', 25))$$, '23514', null,
   'el nombre del organizador tiene hasta 24 caracteres');
+select throws_ok($$select pg_temp.new_match(p_maps => null)$$, 'P0001', 'maps_required',
+  'Google Maps es obligatorio');
 select throws_ok($$select pg_temp.new_match(p_maps => 'javascript:alert(1)')$$, '23514', null,
   'el enlace de Maps no puede ser javascript:');
 select throws_ok($$select pg_temp.new_match(p_maps => 'https://evil.example/maps')$$, '23514', null,
@@ -64,8 +66,8 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 -- Rate limit: 10 partidos por identidad cada 24 h
 -- ---------------------------------------------------------------------------
--- Ya creó 2 (el de Maps y el de ctx). Creamos 8 más y el 11vo falla.
-select pg_temp.new_match() from generate_series(1, 8);
+-- Ya creó 3 (cancha opcional, Maps y ctx). Creamos 7 más y el 11vo falla.
+select pg_temp.new_match() from generate_series(1, 7);
 select throws_ok($$select pg_temp.new_match()$$, 'P0001', 'rate_limited',
   'el partido número 11 en 24 horas se rechaza');
 

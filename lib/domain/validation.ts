@@ -72,15 +72,28 @@ export function validateMatchInput(input: CreateMatchInput, now: Date = new Date
     else if (when.getTime() - now.getTime() > 365 * 24 * 3600 * 1000) e.date = "Como mucho, dentro de un año.";
   }
 
-  if (!venue) e.venue = "Contanos dónde se juega.";
-  else if (venue.length > LIMITS.venue) e.venue = `Hasta ${LIMITS.venue} letras.`;
+  if (venue.length > LIMITS.venue) e.venue = `Hasta ${LIMITS.venue} letras.`;
   else if (CONTROL.test(venue)) e.venue = "El nombre tiene caracteres raros.";
 
   const maps = normalizeMapsUrl(input.mapsUrl);
-  if (maps && !isValidMapsUrl(maps)) e.mapsUrl = "Ese enlace no parece de Google Maps.";
+  if (!maps) e.mapsUrl = "Pegá el enlace de Google Maps.";
+  else if (!isValidMapsUrl(maps)) e.mapsUrl = "Ese enlace no parece de Google Maps.";
 
   const nameErr = playerNameError(input.organizerName);
   if (nameErr) e.organizerName = nameErr;
 
   return e;
+}
+
+/** Solo los enlaces largos /maps/place/ incluyen un nombre legible localmente. */
+export function venueFromMapsUrl(raw: string): string | null {
+  try {
+    const url = new URL(normalizeMapsUrl(raw));
+    const match = url.pathname.match(/\/maps\/place\/([^/]+)/i);
+    if (!match) return null;
+    const name = decodeURIComponent(match[1].replace(/\+/g, " ")).trim();
+    return name && name.length <= LIMITS.venue ? name : null;
+  } catch {
+    return null;
+  }
 }

@@ -4,33 +4,24 @@ import { useState } from "react";
 import { cx } from "@/lib/cx";
 import { XIcon } from "./icons";
 
-/**
- * Chip con el nombre de un jugador en la lista de cada equipo.
- *   me:    resaltado en amarillo ("Nico (vos)")
- *   bench: fondo arena ("Nico (banco)")
- *   onRemove: muestra la X del organizador. Diferencia con el diseño: en vez de
- *   sacar al instante, pide confirmación inline ("¿Sacar a Nico? Sí / No"),
- *   porque un toque accidental no se puede deshacer fácil (el banco ya ascendió).
- */
+/** Chip de muestra para la galería de componentes. */
 export function PlayerChip({
   name,
   me,
-  bench,
   onRemove,
   removing,
 }: {
   name: string;
   me?: boolean;
-  bench?: boolean;
   onRemove?: () => void;
   removing?: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
-  const label = name + (me && bench ? " (vos, banco)" : me ? " (vos)" : bench ? " (banco)" : "");
+  const label = name + (me ? " (vos)" : "");
 
   const base = cx(
     "inline-flex min-h-8 items-center rounded-full border text-14",
-    me ? "border-me-border bg-me-bg font-semibold" : bench ? "border-line bg-bench" : "border-line bg-surface",
+    me ? "border-me-border bg-me-bg font-semibold" : "border-line bg-surface",
   );
 
   if (!onRemove) {
@@ -62,7 +53,7 @@ export function PlayerChip({
       {/* 44×44 de área táctil (el diseño usa 40 en celular y 32 en escritorio). */}
       <button
         type="button"
-        aria-label={`Sacar a ${name}${bench ? " del banco" : ""}`}
+        aria-label={`Sacar a ${name}`}
         onClick={() => setConfirming(true)}
         className="-my-1.5 flex size-11 items-center justify-center rounded-full text-ink-2"
       >

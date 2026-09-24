@@ -18,8 +18,8 @@ insert into public.matches (id, format, venue, starts_at, timezone, organizer_na
   ('vxjyz234', 5, 'Cancha', now() + interval '1 day', 'America/Montevideo', 'Ana'),
   ('rcnt2345', 5, 'Cancha', now() + interval '1 day', 'America/Montevideo', 'Ana'),
   ('ftr23456', 5, 'Cancha', now() + interval '2 days', 'America/Montevideo', 'Ana');
+update public.matches set created_by = '00000000-0000-0000-0000-0000000000a2' where id = 'ftr23456';
 
-insert into public.match_admins (match_id, user_id) values ('ftr23456', '00000000-0000-0000-0000-0000000000a2');
 insert into public.match_players (match_id, user_id, name, team, slot)
 values ('ftr23456', '00000000-0000-0000-0000-0000000000a3', 'Bruno', 'A', 0),
        ('vxjyz234', null, 'Del viejo', 'A', 0);

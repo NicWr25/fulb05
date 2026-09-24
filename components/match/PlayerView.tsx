@@ -7,19 +7,17 @@ import { StatBox } from "@/components/ui/StatBox";
 import { MatchHeader } from "./MatchHeader";
 import { MatchLayout } from "./MatchLayout";
 import { MatchPitch, type SlotRef } from "./MatchPitch";
-import { JoinCard } from "./JoinCard";
+import { QuickAddBar } from "./QuickAddBar";
 import { MyEntryCard } from "./MyEntryCard";
-import { Rosters } from "./Rosters";
 import { ShareIconLink, ShareWideLink } from "./ShareButtons";
-import { TeamLegend } from "./TeamLegend";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import type { MatchState } from "@/lib/hooks/useMatch";
-import { formatMatchDate, weekday } from "@/lib/domain/datetime";
+import { formatMatchDate } from "@/lib/domain/datetime";
 import { errorKind, errorMessage, SLOT_TAKEN_MESSAGE } from "@/lib/domain/errors";
 import { missingCount, missingLabel, slotsByTeam } from "@/lib/domain/match";
-import { ROLE_NAME, slotRoles, type Point } from "@/lib/domain/positions";
+import { type Point } from "@/lib/domain/positions";
 import { matchTitle } from "@/lib/domain/share";
-import { TEAM_LABEL, type Team } from "@/lib/domain/teams";
+import { TEAM_IN, type Team } from "@/lib/domain/teams";
 import { playerNameError } from "@/lib/domain/validation";
 
 type AnyError = Parameters<typeof errorMessage>[0];
@@ -30,7 +28,7 @@ type AnyError = Parameters<typeof errorMessage>[0];
  *
  * Las acciones escriben DIRECTO en match_players: las reglas las hacen
  * cumplir RLS (solo como vos mismo, solo tu fila) y los triggers (lugar
- * válido, cierre, banco). El cliente solo traduce los errores.
+ * válido y cierre). El cliente solo traduce los errores.
  */
 export function PlayerView({
   state,
@@ -63,14 +61,12 @@ export function PlayerView({
   }
 
   const slots = slotsByTeam(match);
-  const roles = slotRoles(match.format);
   const ready = status === "ready";
 
   // Si el lugar elegido lo ocupó otra persona (se ve al recargar), la
   // selección deja de valer. Se deriva en el render, sin efectos.
   const selected = picked && !slots[picked.team][picked.slot] && picked.slot < match.format ? picked : null;
   const teamFull = (t: Team) => slots[t].every(Boolean);
-  const roleOf = (ref: SlotRef) => ROLE_NAME[roles[ref.slot]];
 
   function pick(ref: SlotRef) {
     setError(null);
@@ -114,8 +110,8 @@ export function PlayerView({
   async function join() {
     setTried(true);
     if (playerNameError(name) || !uid) return;
-    // Sin lugar elegido: slot null = "primer lugar libre, o el banco" (lo resuelve la base).
-    const target = selected ?? { team, slot: null };
+    // Sin lugar elegido, la base asigna el primer lugar libre o rechaza el alta.
+    const target = selected ?? { team, slot: null as unknown as number };
     await run(() =>
       supabaseBrowser().from("match_players").insert({
         match_id: match.id,
@@ -158,26 +154,17 @@ export function PlayerView({
   }
 
   // --- Textos ---------------------------------------------------------------
-  const title = matchTitle(match.title, weekday(match.starts_at, match.timezone));
+  const title = matchTitle(match.title, match.organizer_name);
   const when = formatMatchDate(match.starts_at, match.timezone);
   const missing = missingCount(match);
 
-  let hint = "Tocá un puesto libre en la cancha para elegir dónde jugás, o anotate y te toca el primer lugar libre.";
-  if (selected) hint = `Vas a jugar de ${roleOf(selected)} en ${TEAM_LABEL[selected.team]}.`;
-  else if (teamFull(team)) hint = `${TEAM_LABEL[team]} está completo: te anotás al banco y entrás si se libera un lugar.`;
+  let hint = "Sin lugar elegido: primer lugar libre del equipo.";
+  if (selected) hint = `Vas al lugar ${selected.slot + 1} en ${TEAM_IN[selected.team]}.`;
+  else if (teamFull(team)) hint = `${TEAM_IN[team][0].toUpperCase() + TEAM_IN[team].slice(1)} está completo.`;
 
   let card: React.ReactNode = null;
   if (closed) {
     card = null;
-  } else if (status === "connecting") {
-    // Card neutra mientras se sabe quién sos: evita mostrar "Anotate" a
-    // alguien que ya está anotado (o al organizador, que ve otro panel).
-    card = (
-      <Card aria-busy="true">
-        <CardTitle>Conectando…</CardTitle>
-        <p className="min-h-[38px] text-13 leading-[1.45] text-ink-2">Buscando tu lugar en el partido.</p>
-      </Card>
-    );
   } else if (status === "error") {
     card = (
       <Card>
@@ -188,56 +175,13 @@ export function PlayerView({
         </Button>
       </Card>
     );
-  } else if (me) {
-    const myRef = me.slot !== null ? { team: me.team, slot: me.slot } : null;
-    card = (
-      <MyEntryCard
-        name={me.name}
-        line={
-          myRef
-            ? `Jugás de ${roleOf(myRef)} en ${TEAM_LABEL[me.team]}.`
-            : `Estás en el banco de ${TEAM_LABEL[me.team]}. Si se libera un lugar, entrás vos.`
-        }
-        moveHint={
-          selected
-            ? `Elegiste el puesto de ${roleOf(selected)} en ${TEAM_LABEL[selected.team]}.`
-            : myRef
-              ? "Arrastrá tu ficha para acomodarte. ¿Querés otro puesto? Tocá uno libre en la cancha."
-              : "¿Querés cambiar de lugar? Tocá un puesto libre en la cancha."
-        }
-        error={error}
-        canMove={Boolean(selected)}
-        busy={busy}
-        onMove={move}
-        onLeave={leave}
-      />
-    );
-  } else {
-    card = (
-      <JoinCard
-        name={name}
-        onName={(v) => {
-          setName(v);
-          setError(null);
-        }}
-        nameError={tried ? playerNameError(name) : null}
-        team={team}
-        onTeam={chooseTeam}
-        hint={notice ?? hint}
-        error={error}
-        submitLabel={!ready ? "Conectando…" : !selected && teamFull(team) ? "Anotarme al banco" : "Anotarme"}
-        busy={busy}
-        disabled={!ready}
-        onSubmit={join}
-      />
-    );
   }
 
   return (
     <MatchLayout
       header={
         <MatchHeader
-          eyebrow={closed ? "Partido cerrado" : "Partido entre amigos"}
+          eyebrow={closed ? "Partido cerrado" : undefined}
           title={title}
           when={when}
           venue={match.venue}
@@ -259,7 +203,29 @@ export function PlayerView({
       }
       pitch={
         <>
-          <TeamLegend />
+          {!closed && !me && (
+            <QuickAddBar
+              name={name}
+              onName={(value) => { setName(value); setError(null); }}
+              nameError={tried ? playerNameError(name) : null}
+              team={selected?.team ?? team}
+              onTeam={chooseTeam}
+              hint={notice ?? hint}
+              error={error}
+              placeholder="Tu nombre"
+              submitLabel={!ready ? "Conectando…" : "Anotarme"}
+              busy={busy}
+              disabled={!ready || (!selected && teamFull(team))}
+              onSubmit={join}
+            />
+          )}
+          {!closed && me && <MyEntryCard
+            name={me.name}
+            line={`Jugás en ${TEAM_IN[me.team]}.`}
+            moveHint={selected ? `Elegiste el lugar ${selected.slot + 1} en ${TEAM_IN[selected.team]}.` : "Tocá un lugar libre para cambiarte; arrastrá tu ficha para acomodarte."}
+            error={error} canMove={Boolean(selected)} busy={busy}
+            onMove={move} onLeave={leave}
+          />}
           <MatchPitch
             match={match}
             meId={me?.id}
@@ -275,13 +241,12 @@ export function PlayerView({
             {closed
               ? "El partido ya empezó: la cancha queda como estaba."
               : me?.slot != null
-                ? "Arrastrá tu ficha para acomodarte donde quieras jugar, dentro de tu mitad. Tocá un puesto libre para cambiarte."
-                : "Tocá un puesto libre para elegirlo. Cuando estés anotado, vas a poder arrastrar tu ficha."}
+                ? "Arrastrá tu ficha dentro de tu mitad o tocá un lugar libre para cambiarte."
+                : "Tocá un lugar libre para elegirlo. Cuando estés anotado, vas a poder arrastrar tu ficha."}
           </p>
         </>
       }
       card={card}
-      rosters={<Rosters match={match} meId={me?.id} />}
       share={<ShareWideLink href={shareHref} />}
     />
   );

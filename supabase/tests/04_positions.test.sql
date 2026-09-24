@@ -1,12 +1,12 @@
 -- Tests de posiciones: cada jugador mueve SU ficha, solo en SU mitad; el
--- admin mueve cualquiera (también en su mitad); el layout existe siempre.
+-- admin mueve solo la suya; el layout existe siempre.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(23);
 
 insert into auth.users (id, aud, role, email) values
   ('00000000-0000-0000-0000-00000000000a', 'authenticated', 'authenticated', 'ana@test.local'),   -- admin
-  ('00000000-0000-0000-0000-00000000000b', 'authenticated', 'authenticated', 'bruno@test.local'), -- Claros, lugar 1
+  ('00000000-0000-0000-0000-00000000000b', 'authenticated', 'authenticated', 'bruno@test.local'), -- Blanco, lugar 1
   ('00000000-0000-0000-0000-00000000000c', 'authenticated', 'authenticated', 'caro@test.local');  -- solo mira
 
 create function pg_temp.login(p_uid uuid) returns void language plpgsql as $$
@@ -27,7 +27,7 @@ $$;
 
 select pg_temp.login('00000000-0000-0000-0000-00000000000a');
 insert into ctx select 'id', public.create_match(
-  7, null, 'Cancha', null, current_date + 3, '20:00', 'America/Montevideo', 'Ana') ->> 'id';
+  7, null, 'Cancha', 'https://maps.app.goo.gl/abc', current_date + 3, '20:00', 'America/Montevideo', 'Ana') ->> 'id';
 reset role;
 
 -- ---------------------------------------------------------------------------
@@ -75,31 +75,54 @@ select throws_ok(
   '42501', 'not_your_token', 'Caro no puede mover la ficha de Bruno');
 
 -- ---------------------------------------------------------------------------
--- El admin mueve cualquiera, pero también respeta las mitades
+-- El admin mueve cualquier ficha ocupada y respeta las mitades
 -- ---------------------------------------------------------------------------
 select pg_temp.login('00000000-0000-0000-0000-00000000000a');
-select lives_ok(
+select throws_ok(
   format($$select public.move_token(%L, 'B', 3, 60, 40)$$, pg_temp.id()),
-  'el admin puede mover un lugar libre de Oscuros');
+  '42501', 'not_your_token', 'el admin no puede mover un lugar libre de Negro');
+select throws_ok(
+  format($$select public.move_token(%L, 'A', 1, 70, 40)$$, pg_temp.id()),
+  'P0001', 'wrong_half', 'el admin puede mover a Bruno, pero respeta la mitad');
+select lives_ok(
+  format($$select public.move_token(%L, 'A', 1, 30, 40)$$, pg_temp.id()),
+  'el admin acomoda la ficha de Bruno');
+insert into public.match_players (match_id, user_id, name, team, slot)
+values (pg_temp.id(), '00000000-0000-0000-0000-00000000000a', 'Ana', 'B', 3);
 select throws_ok(
   format($$select public.move_token(%L, 'B', 3, 40, 40)$$, pg_temp.id()),
   'P0001', 'wrong_half', 'el admin tampoco puede cruzar la mitad');
-select is(pg_temp.point('A', 1), '{"x": 50, "y": 50}'::jsonb,
-  'mover la ficha B3 no pisó el movimiento de Bruno (jsonb_set cambia un solo punto)');
+select lives_ok(
+  format($$select public.move_token(%L, 'B', 3, 60, 40)$$, pg_temp.id()),
+  'el admin sí puede mover su propia ficha');
+select is(pg_temp.point('A', 1), '{"x": 30, "y": 40}'::jsonb,
+  'mover la ficha propia no pisó el movimiento de Bruno (jsonb_set cambia un solo punto)');
+select lives_ok(
+  format($$select public.move_player_slot(%L,
+    (select id from public.match_players where name = 'Bruno'), 'B', 2)$$, pg_temp.id()),
+  'el admin mueve a Bruno a un lugar libre del otro equipo');
+select is(
+  (select team || slot from public.match_players where name = 'Bruno'),
+  'B2', 'el cambio de equipo y lugar queda guardado');
+select throws_ok(
+  format($$select public.move_player_slot(%L,
+    (select id from public.match_players where name = 'Bruno'), 'B', 3)$$, pg_temp.id()),
+  'P0001', 'slot_taken', 'el admin no puede ocupar el lugar de Ana');
+
 
 -- ---------------------------------------------------------------------------
--- Partido empezado: el jugador ya no mueve; el admin sí
+-- Partido empezado: nadie mueve
 -- ---------------------------------------------------------------------------
 reset role;
 update public.matches set starts_at = now() - interval '1 minute' where id = pg_temp.id();
 select pg_temp.login('00000000-0000-0000-0000-00000000000b');
 select throws_ok(
-  format($$select public.move_token(%L, 'A', 1, 20, 20)$$, pg_temp.id()),
+  format($$select public.move_token(%L, 'B', 2, 70, 20)$$, pg_temp.id()),
   'P0001', 'match_closed', 'con el partido empezado, el jugador ya no mueve su ficha');
 select pg_temp.login('00000000-0000-0000-0000-00000000000a');
-select lives_ok(
-  format($$select public.move_token(%L, 'A', 1, 20, 20)$$, pg_temp.id()),
-  '... el admin sí puede seguir acomodando');
+select throws_ok(
+  format($$select public.move_token(%L, 'B', 3, 60, 40)$$, pg_temp.id()),
+  'P0001', 'match_closed', 'el admin tampoco mueve su ficha después del inicio');
 
 -- ---------------------------------------------------------------------------
 -- Restablecer y cambio de formato
@@ -113,7 +136,7 @@ select is(
 
 update public.matches set starts_at = now() + interval '3 days' where id = pg_temp.id();
 select pg_temp.login('00000000-0000-0000-0000-00000000000a');
-select public.update_match(pg_temp.id(), 5, null, 'Cancha', null, current_date + 3, '20:00', 'America/Montevideo', 'Ana');
+select public.update_match(pg_temp.id(), 5, null, 'Cancha', 'https://maps.app.goo.gl/abc', current_date + 3, '20:00', 'America/Montevideo', 'Ana');
 select is(
   (select jsonb_array_length(layout -> 'B') from public.matches where id = pg_temp.id()),
   5, 'al cambiar a fútbol 5, el layout pasa a tener 5 puntos por equipo');

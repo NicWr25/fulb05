@@ -17,8 +17,8 @@ const C = {
   ink3: "#5A5E66",
   pitch: "#2F7F4F",
   pitchAlt: "#2A7447",
-  teamA: "#F2EEE3",
-  teamB: "#1F2A5C",
+  teamA: "#FFFFFF",
+  teamB: "#16181D",
   swatch: "#8A8577",
 };
 
@@ -45,7 +45,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const d = ogImageData(match);
   const eyebrow = "PARTIDO ENTRE AMIGOS";
   const formatLine = `${d.format} vs ${d.format}`;
-  const allText = [eyebrow, d.title, d.when, d.venue, d.missing, d.missingText, formatLine, "Claros", "Oscuros", `${d.claros}/${d.format}`, `${d.oscuros}/${d.format}`].join(" ");
+  const allText = [eyebrow, d.title, d.when, d.venue, d.missing, d.missingText, formatLine, "Blanco", "Negro", `${d.claros}/${d.format}`, `${d.oscuros}/${d.format}`].join(" ");
 
   const team = (label: string, count: number, bg: string, fg: string) => (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
@@ -87,9 +87,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
               {d.title}
             </div>
             <div style={{ display: "flex", fontSize: 34, color: C.ink2, fontFamily: "IBM Plex Sans" }}>{d.when}</div>
-            <div style={{ display: "flex", fontSize: 34, color: "#1F5C3A", fontFamily: "IBM Plex Sans", fontWeight: 600 }}>
-              {d.venue}
-            </div>
+            {d.venue && <div style={{ display: "flex", fontSize: 34, color: "#1F5C3A", fontFamily: "IBM Plex Sans", fontWeight: 600 }}>{d.venue}</div>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 24, padding: "22px 28px", borderRadius: 20, background: C.sand }}>
             <div style={{ display: "flex", fontSize: 72, fontFamily: "Bricolage Grotesque", fontWeight: 800 }}>{String(d.missing)}</div>
@@ -117,8 +115,8 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         >
           <div style={{ position: "absolute", left: 0, right: 0, top: 249, height: 3, background: "rgba(255,255,255,0.8)", display: "flex" }} />
           <div style={{ position: "absolute", left: 160, top: 190, width: 120, height: 120, borderRadius: 60, border: "3px solid rgba(255,255,255,0.8)", display: "flex" }} />
-          {team("Oscuros", d.oscuros, C.teamB, "#FFFFFF")}
-          {team("Claros", d.claros, C.teamA, C.ink)}
+          {team("Negro", d.oscuros, C.teamB, "#FFFFFF")}
+          {team("Blanco", d.claros, C.teamA, C.ink)}
         </div>
       </div>
     ),

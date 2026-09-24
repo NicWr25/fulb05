@@ -12,7 +12,7 @@ describe("errorMessage", () => {
 
   it("traduce los errores de dominio de los triggers", () => {
     expect(errorMessage({ code: "P0001", message: "match_closed" })).toMatch(/cerraron/);
-    expect(errorMessage({ code: "P0001", message: "bench_full" })).toMatch(/banco/);
+    expect(errorMessage({ code: "P0001", message: "team_full" })).toMatch(/completo/);
   });
 
   it("rate limit de Auth y errores de red", () => {

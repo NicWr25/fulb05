@@ -22,13 +22,13 @@ describe("mover fichas", () => {
     const admin = await anon();
     const date = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
     const { data, error: createError } = await admin.sb.rpc("create_match", {
-      p_format: 7, p_title: "", p_venue: "Cancha", p_maps_url: "", p_date: date,
+      p_format: 7, p_title: "", p_venue: "Cancha", p_maps_url: "https://maps.app.goo.gl/abc", p_date: date,
       p_time: "20:00", p_timezone: "America/Montevideo", p_organizer_name: "Ana",
     });
     expect(createError).toBeNull();
     const matchId = (data as { id: string }).id;
 
-    // 6 jugadores de Claros en los lugares 1..6.
+    // 6 jugadores de Blanco en los lugares 1..6.
     const players = await Promise.all(Array.from({ length: 6 }, () => anon()));
     for (const [i, p] of players.entries()) {
       await p.sb.rpc("open_match", { p_match_id: matchId });
@@ -38,7 +38,7 @@ describe("mover fichas", () => {
       expect(error).toBeNull();
     }
 
-    // Todos mueven a la vez, cada uno a un lugar distinto de la mitad de Claros.
+    // Todos mueven a la vez, cada uno a un lugar distinto de la mitad de Blanco.
     const results = await Promise.all(
       players.map((p, i) =>
         p.sb.rpc("move_token", { p_match_id: matchId, p_team: "A", p_slot: i + 1, p_x: 10 + i * 6, p_y: 20 + i * 10 }),
@@ -55,7 +55,7 @@ describe("mover fichas", () => {
     const [admin, bruno, caro] = await Promise.all([anon(), anon(), anon()]);
     const date = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
     const { data } = await admin.sb.rpc("create_match", {
-      p_format: 5, p_title: "", p_venue: "Cancha", p_maps_url: "", p_date: date,
+      p_format: 5, p_title: "", p_venue: "Cancha", p_maps_url: "https://maps.app.goo.gl/abc", p_date: date,
       p_time: "20:00", p_timezone: "America/Montevideo", p_organizer_name: "Ana",
     });
     const matchId = (data as { id: string }).id;

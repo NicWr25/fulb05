@@ -67,7 +67,7 @@ describe("Realtime", () => {
     [admin, viewer, stranger] = await Promise.all([anon(), anon(), anon()]);
     const date = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
     const { data, error } = await admin.sb.rpc("create_match", {
-      p_format: 5, p_title: "", p_venue: "Cancha RT", p_maps_url: "", p_date: date,
+      p_format: 5, p_title: "", p_venue: "Cancha RT", p_maps_url: "https://maps.app.goo.gl/abc", p_date: date,
       p_time: "20:00", p_timezone: "America/Montevideo", p_organizer_name: "Ana",
     });
     if (error) throw error;
@@ -90,7 +90,7 @@ describe("Realtime", () => {
     for (let attempt = 0; attempt < 5 && !rowId; attempt++) {
       const { data: row, error } = await admin.sb
         .from("match_players")
-        .insert({ match_id: matchId, user_id: null, name: `Invitado ${attempt}`, team: "A", slot: null })
+        .insert({ match_id: matchId, user_id: null, name: `Invitado ${attempt}`, team: "A", slot: null as unknown as number })
         .select("id")
         .single();
       expect(error).toBeNull();

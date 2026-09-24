@@ -4,16 +4,15 @@
 
 App web (pensada para el celular) para armar equipos de **fútbol 5 o 7** entre amigos.
 Alguien crea el partido, pasa el link por WhatsApp y cada uno entra, pone su nombre y
-elige equipo y puesto tocando la cancha. Todos ven lo mismo, en vivo, sin registrarse.
+elige equipo y lugar tocando la cancha. Todos ven lo mismo, en vivo, sin registrarse.
 
 - **Anotarse sin cuenta**: cada navegador recibe una identidad anónima.
 - **Cancha interactiva**: elegís un lugar libre; después arrastrás tu ficha para
   acomodarte, siempre dentro de la mitad de tu equipo.
-- **Banco de suplentes**: si un equipo está lleno te anotás al banco; si se libera un
-  lugar, entra el primero del banco (lo hace la base, automáticamente).
+- **Capacidad exacta**: juegan 5 vs 5 o 7 vs 7; cuando un equipo se llena, no se anotan más jugadores en él.
 - **En vivo**: los cambios de cualquiera aparecen en todos los celulares sin recargar.
 - **Organizador**: agrega gente que no usa la app, saca jugadores, cambia formato,
-  día, hora o cancha, y recupera el control desde otro dispositivo con un link secreto.
+  día, hora o cancha, y acomoda cualquier ficha desde el navegador donde creó el partido.
 - **Vista previa en WhatsApp**: `Fútbol 5 · Jueves 21:00 · Cancha X` con imagen propia.
 - **Se borra solo**: los partidos desaparecen 7 días después de jugarse.
 
@@ -70,7 +69,7 @@ Flujo de una visita a `/p/[id]`:
 ### Estructura
 
 ```
-app/                      rutas (/, /p/[id], /p/[id]/admin, imágenes Open Graph)
+app/                      rutas (/, /p/[id], imágenes Open Graph)
 components/ui/            componentes base (botones, campos, cards…)
 components/pitch/         cancha y fichas
 components/match/         vista de jugador, panel del organizador, cards
@@ -173,27 +172,25 @@ todos los partidos**. En cambio:
 |---|---|
 | `matches` | leer si abriste el link; sin escrituras directas (solo RPC) |
 | `match_players` | leer si abriste el link · insertar solo como vos mismo (o el admin sin `user_id`) · modificar solo lo propio · borrar lo propio o cualquiera si sos admin |
-| `match_admins` | cada uno ve solo sus filas |
-| `match_viewers`, `match_admin_secrets` | RLS activado y **sin políticas**: nadie accede directo |
+| `match_viewers` | RLS activado y **sin políticas**: nadie accede directo |
 
 Además, los permisos (`GRANT`) se dan **por columna**: nadie puede cambiar el `user_id`
 o el `match_id` de una inscripción. Supabase da por defecto todos los permisos a
 `anon`/`authenticated`; las migraciones los revocan y dan solo lo necesario.
 
 ### Administración
-- El creador queda en `match_admins` con su identidad anónima.
-- Además recibe un **token secreto** (32 bytes aleatorios). En la base solo se guarda su
-  **hash SHA-256** (en una tabla aparte, porque RLS filtra filas, no columnas). Alcanza un
-  hash rápido porque el token no es una contraseña humana: con 256 bits no hay diccionario.
-- El link es `/p/{id}/admin#{token}`: el token va en el **fragmento (`#`)**, que el
-  navegador nunca manda al servidor (no queda en logs ni en el header `Referer`), y la
-  página lo borra de la barra de direcciones apenas lo lee.
-- Toda acción de admin se valida en Postgres (`is_match_admin()` en políticas y RPC
-  `security definer` con `search_path = ''`), nunca solo en el cliente.
+- El creador administra con la identidad anónima del navegador donde creó el partido.
+  `private.is_match_admin()` compara `auth.uid()` con `matches.created_by`; el
+  cliente solo muestra el panel, y Postgres valida cada escritura.
+- Antes de ofrecer el enlace de invitación, el creador elige Blanco o Negro y se anota.
+  El trigger impide que se baje del partido; puede cambiarse de lugar o de equipo.
+- Los enlaces secretos de organizador anteriores quedaron deshabilitados. Si se pierde
+  la sesión del navegador creador, no hay mecanismo de recuperación.
 
 ### Reglas del dominio (triggers)
-- Lugar válido para el formato, máximo 6 suplentes por equipo, cierre a la hora de
-  inicio (para todos, incluido el admin) y ascenso automático del banco.
+- Lugar válido para el formato, capacidad exacta sin suplentes y cierre a la hora de
+  inicio (para todos, incluido el admin). `slot: null` al insertar significa primer
+  lugar libre; si no hay lugar, la base responde `team_full`.
 - Un *advisory lock* por partido serializa las escrituras de ese partido: dos
   "anotarme al primer lugar libre" simultáneos no chocan.
 - Si dos personas eligen **el mismo lugar**, el `UNIQUE (match_id, team, slot)` hace
@@ -218,11 +215,10 @@ Si alguien vuelve con la sesión de un usuario borrado, el cliente lo detecta
 
 ## Decisiones técnicas
 
-- **Realtime: releer en vez de aplicar el evento.** Una acción genera varios eventos
-  (bajarse = `DELETE` + `UPDATE` del que asciende del banco). Además, con la *replica
-  identity* por defecto, un `DELETE` solo trae la clave primaria: **no llega a una
+- **Realtime: releer en vez de aplicar el evento.** Una acción puede generar varios
+  eventos. Además, con la *replica identity* por defecto, un `DELETE` solo trae la clave primaria: **no llega a una
   suscripción filtrada por `match_id`**. Se escucha `DELETE` sin filtro y se descartan
-  los ids que no están en pantalla. El partido es chico (≤ 26 filas): releer es barato.
+  los ids que no están en pantalla. El partido es chico (≤ 14 filas): releer es barato.
 - **Mover fichas con `jsonb_set` en un `UPDATE`.** Si cada jugador guardara el layout
   entero, dos movimientos simultáneos se pisarían (*lost update*). Cambiar un solo punto
   dentro de un `UPDATE` es atómico por fila (hay un test con 6 jugadores moviendo a la vez).
@@ -252,8 +248,8 @@ Si alguien vuelve con la sesión de un usuario borrado, el cliente lo detecta
 - **Identidad por navegador.** Si alguien se anota desde el navegador interno de
   WhatsApp y después abre Chrome, es otra persona para la app (otro `localStorage`).
   Lo resuelve el organizador sacándolo. Evitarlo requiere cuentas.
-- **El link de organizador no se puede volver a ver** (solo se guarda su hash). Quien
-  lo pierde sigue siendo admin desde su navegador.
+- **Organización ligada al navegador creador.** Si se borra su sesión anónima, se
+  pierde el acceso de organización.
 - **La posición es del lugar, no de la persona**: si alguien se baja, quien ocupe ese
   lugar hereda dónde había quedado la ficha.
 - Sin Content-Security-Policy completa de scripts (Next.js inyecta scripts inline;

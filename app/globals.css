@@ -22,7 +22,6 @@
   --color-cream: #f4f1ea; /* fondo de página */
   --color-surface: #ffffff; /* cards */
   --color-sand: #e6e1d5; /* segmented, stat box, tags, divisores */
-  --color-bench: #ece8de; /* chip de suplente */
   --color-field: #fbfaf7; /* fondo de inputs */
 
   /* Texto */
@@ -56,8 +55,8 @@
   --color-admin-ink: #5c4a0e;
 
   /* Equipos (fijos en el MVP) */
-  --color-team-a: #f2eee3; /* Claros */
-  --color-team-b: #1f2a5c; /* Oscuros */
+  --color-team-a: #ffffff; /* Blanco */
+  --color-team-b: #16181d; /* Negro */
 
   /* --- Tipografía --------------------------------------------------------- */
   /* --font-plex y --font-bricolage las define next/font en app/layout.tsx. */
@@ -166,7 +165,7 @@
 
   /*
    * Cada ficha recibe sus coordenadas canónicas (--x a lo largo, --y a lo ancho,
-   * en %). En vertical, Claros (x = 0) quedan abajo: top = 100 - x.
+   * en %). En vertical, Blanco (x = 0) quedan abajo: top = 100 - x.
    * Misma fórmula que toScreen() en lib/domain/positions.ts.
    */
   .pitch-spot {
@@ -194,8 +193,8 @@
 
 /*
  * Sombra sobre la mitad RIVAL mientras se arrastra una ficha: muestra hasta
- * dónde se puede llevar. En vertical, Claros (A) juegan abajo → se sombrea
- * arriba; en apaisado, Claros juegan a la izquierda → se sombrea la derecha.
+ * dónde se puede llevar. En vertical, Blanco (A) juegan abajo → se sombrea
+ * arriba; en apaisado, Blanco juegan a la izquierda → se sombrea la derecha.
  */
 @layer components {
   .pitch-shade {

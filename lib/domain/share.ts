@@ -7,15 +7,11 @@ export function whatsappUrl(text: string): string {
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
-export function inviteMessage(opts: { title: string; when: string; venue: string; url: string }): string {
-  return `⚽ ${opts.title} · ${opts.when} · ${opts.venue}\nAnotate acá: ${opts.url}`;
+export function inviteMessage(opts: { title: string; when: string; venue: string | null; url: string }): string {
+  return `⚽ ${opts.title} · ${opts.when}${opts.venue ? ` · ${opts.venue}` : ""}\nAnotate acá: ${opts.url}`;
 }
 
-export function adminSelfMessage(opts: { title: string; adminUrl: string }): string {
-  return `🔒 Mi enlace de organizador de "${opts.title}" (no lo compartas):\n${opts.adminUrl}`;
-}
-
-/** Título por defecto si el organizador no le puso nombre: "Partido del viernes". */
-export function matchTitle(title: string | null, weekdayName: string): string {
-  return title?.trim() || `Partido del ${weekdayName}`;
+/** El título por defecto sigue el nombre actual del organizador. */
+export function matchTitle(title: string | null, organizerName: string): string {
+  return title?.trim() || `Partido de ${organizerName}`;
 }
