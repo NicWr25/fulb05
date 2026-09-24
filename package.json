@@ -14,7 +14,8 @@
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
     "typecheck": "next typegen && tsc --noEmit",
-    "db:types": "supabase gen types typescript --local --schema public > lib/supabase/database.types.ts"
+    "db:types": "supabase gen types typescript --local --schema public > lib/supabase/database.types.ts",
+    "test:integration": "vitest run --config vitest.integration.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.1",

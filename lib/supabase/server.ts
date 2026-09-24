@@ -4,6 +4,9 @@ import type { Database } from "./database.types";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./env";
 import { MATCH_ID_RE, type Match } from "@/lib/domain/match";
 
+/** Lo que devuelve get_match_preview: el partido + la hora de Postgres. */
+export type MatchPreview = Match & { server_now: string };
+
 /**
  * Lectura del partido en el SERVIDOR (render inicial y Open Graph).
  * Usa la anon key y NINGUNA sesión: corre como el rol `anon`, que solo puede
@@ -13,7 +16,7 @@ import { MATCH_ID_RE, type Match } from "@/lib/domain/match";
  * `cache()` de React deduplica dentro de un mismo request: generateMetadata
  * y la página comparten una sola llamada.
  */
-export const getMatchPreview = cache(async (id: string): Promise<Match | null> => {
+export const getMatchPreview = cache(async (id: string): Promise<MatchPreview | null> => {
   if (!MATCH_ID_RE.test(id)) return null; // ni vale la pena consultar
 
   const sb = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -21,5 +24,5 @@ export const getMatchPreview = cache(async (id: string): Promise<Match | null> =
   });
   const { data, error } = await sb.rpc("get_match_preview", { p_match_id: id });
   if (error) throw new Error(`get_match_preview falló: ${error.message}`);
-  return (data as unknown as Match | null) ?? null;
+  return (data as unknown as MatchPreview | null) ?? null;
 });
