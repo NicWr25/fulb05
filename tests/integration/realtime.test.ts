@@ -44,6 +44,19 @@ function listen(sb: Client, matchId: string): Promise<{ events: Event[]; stop: (
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Espera hasta que se cumpla la condición (o se venza el plazo). Mejor que
+ * esperar un tiempo fijo: en una máquina lenta (CI) los eventos tardan más.
+ */
+async function waitFor(cond: () => boolean, timeoutMs = 10_000): Promise<boolean> {
+  const start = Date.now();
+  while (!cond()) {
+    if (Date.now() - start > timeoutMs) return false;
+    await wait(100);
+  }
+  return true;
+}
+
 describe("Realtime", () => {
   let admin: Awaited<ReturnType<typeof anon>>;
   let viewer: Awaited<ReturnType<typeof anon>>;
@@ -69,15 +82,27 @@ describe("Realtime", () => {
   it("quien abrió el link recibe INSERT y DELETE; quien no, nada", async () => {
     const [v, s] = await Promise.all([listen(viewer.sb, matchId), listen(stranger.sb, matchId)]);
 
-    const { data: row, error } = await admin.sb
-      .from("match_players")
-      .insert({ match_id: matchId, user_id: null, name: "Invitado", team: "A", slot: 0 })
-      .select("id")
-      .single();
-    expect(error).toBeNull();
-    await wait(800);
-    await admin.sb.from("match_players").delete().eq("id", row!.id);
-    await wait(1200);
+    // Un canal puede responder SUBSCRIBED un instante antes de empezar a leer
+    // los cambios (sobre todo con Realtime recién levantado, como en CI). Si
+    // el primer INSERT se pierde, se reintenta con otro: lo que se prueba es
+    // que los eventos llegan a quien corresponde, no la latencia del primero.
+    let rowId: string | null = null;
+    for (let attempt = 0; attempt < 5 && !rowId; attempt++) {
+      const { data: row, error } = await admin.sb
+        .from("match_players")
+        .insert({ match_id: matchId, user_id: null, name: `Invitado ${attempt}`, team: "A", slot: null })
+        .select("id")
+        .single();
+      expect(error).toBeNull();
+      const received = await waitFor(() => v.events.some((e) => e.kind === "filtered" && e.type === "INSERT"), 3000);
+      if (received) rowId = row!.id;
+      else await admin.sb.from("match_players").delete().eq("id", row!.id);
+    }
+    expect(rowId, "el viewer nunca recibió un INSERT").not.toBeNull();
+
+    await admin.sb.from("match_players").delete().eq("id", rowId!);
+    expect(await waitFor(() => v.events.some((e) => e.kind === "unfiltered" && e.old.id === rowId))).toBe(true);
+    await wait(500); // margen para que llegue cualquier evento de más al "espía"
     v.stop();
     s.stop();
 
@@ -88,11 +113,11 @@ describe("Realtime", () => {
     // ...y SÍ por la sin filtro, solo con la PK. (Pueden llegar también DELETE
     // de OTROS partidos, ej. de race.test.ts corriendo en paralelo: por eso
     // useMatch compara el id con los jugadores que tiene en pantalla.)
-    const del = v.events.find((e) => e.kind === "unfiltered" && e.old.id === row!.id);
-    expect(del?.old).toEqual({ id: row!.id });
+    const del = v.events.find((e) => e.kind === "unfiltered" && e.old.id === rowId);
+    expect(del?.old).toEqual({ id: rowId });
 
     // Quien no abrió el link: ningún INSERT/UPDATE (RLS). Puede ver el DELETE
     // sin filtro, pero solo es un UUID sin datos.
     expect(s.events.filter((e) => e.type !== "DELETE")).toEqual([]);
-  });
+  }, 40_000); // peor caso: 5 reintentos de 3 s + la espera del DELETE
 });
