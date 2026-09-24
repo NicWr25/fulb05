@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Crear partido, celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'IBM Plex Sans',system-ui,sans-serif;background:#F4F1EA;color:#16181D}
+a{color:#1F2A5C}a:hover{color:#11183A}
+button{font-family:inherit}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #E0A800;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 1240px; box-sizing: border-box; padding: 24px 16px 32px; display: flex; flex-direction: column; gap: 24px; background: #F4F1EA; color: #16181D; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: #5A5E66">ARMADO DE EQUIPOS</div>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', Georgia, serif; font-weight: 800; font-size: 38px; line-height: 1.02">Armá el partido.<br>Pasá el enlace.</h1>
+<p style="margin: 0; font-size: 16px; line-height: 1.5; color: #4A4E57">Cada uno se anota solo, en su equipo y en su puesto. Vos solo acomodás las fichas.</p>
+</div>
+<section id="create-card-phone" style="box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; padding: 20px; background: #FFFFFF; border: 1px solid #DDD8CC; border-radius: 20px">
+<sc-if value="{{editing}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', Georgia, serif; font-weight: 800; font-size: 24px">Nuevo partido</h2>
+
+<div role="group" aria-label="Formato" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; background: #E6E1D5; border-radius: 12px">
+<sc-for list="{{formats}}" as="f" hint-placeholder-count="2">
+<button type="button" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="height: 44px; border: 0; border-radius: 9px; font-size: 16px; font-weight: 600; cursor: pointer; background: {{f.bg}}; color: #16181D; box-shadow: {{f.shadow}}">{{f.label}}</button>
+</sc-for>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="cp-title" style="font-size: 13px; font-weight: 600; color: #4A4E57">Nombre del partido <span style="font-weight: 400">(opcional)</span></label>
+<input id="cp-title" type="text" autocomplete="off" placeholder="ej. Fútbol del viernes" value="{{title}}" onChange="{{onTitle}}" style="height: 46px; box-sizing: border-box; padding: 0 14px; font-size: 16px; font-family: inherit; border: 1px solid #C9C3B5; border-radius: 10px; background: #FBFAF7; color: #16181D">
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="cp-date" style="font-size: 13px; font-weight: 600; color: #4A4E57">Día</label>
+<input id="cp-date" type="date" value="{{date}}" onChange="{{onDate}}" aria-invalid="{{dateInvalid}}" style="height: 46px; box-sizing: border-box; padding: 0 12px; font-size: 16px; font-family: inherit; border: {{dateBorder}}; border-radius: 10px; background: #FBFAF7; color: #16181D">
+<sc-if value="{{dateErr}}" hint-placeholder-val="{{ false }}"><div style="font-size: 13px; color: #9F1D1D">Elegí el día.</div></sc-if>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="cp-time" style="font-size: 13px; font-weight: 600; color: #4A4E57">Hora</label>
+<input id="cp-time" type="time" value="{{time}}" onChange="{{onTime}}" aria-invalid="{{timeInvalid}}" style="height: 46px; box-sizing: border-box; padding: 0 12px; font-size: 16px; font-family: inherit; border: {{timeBorder}}; border-radius: 10px; background: #FBFAF7; color: #16181D">
+<sc-if value="{{timeErr}}" hint-placeholder-val="{{ false }}"><div style="font-size: 13px; color: #9F1D1D">Elegí la hora.</div></sc-if>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="cp-venue" style="font-size: 13px; font-weight: 600; color: #4A4E57">Cancha</label>
+<input id="cp-venue" type="text" autocomplete="off" placeholder="Nombre de la cancha" value="{{venue}}" onChange="{{onVenue}}" aria-invalid="{{venueInvalid}}" style="height: 46px; box-sizing: border-box; padding: 0 14px; font-size: 16px; font-family: inherit; border: {{venueBorder}}; border-radius: 10px; background: #FBFAF7; color: #16181D">
+<sc-if value="{{venueErr}}" hint-placeholder-val="{{ false }}"><div style="font-size: 13px; color: #9F1D1D">Contanos dónde se juega.</div></sc-if>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="cp-maps" style="font-size: 13px; font-weight: 600; color: #4A4E57">Ubicación en Google Maps <span style="font-weight: 400">(opcional)</span></label>
+<div style="position: relative; display: flex">
+<span style="position: absolute; left: 12px; top: 15px; color: #4A4E57; pointer-events: none; display: flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"></path><circle cx="12" cy="9.5" r="2.5"></circle></svg></span>
+<input id="cp-maps" type="url" autocomplete="off" inputmode="url" placeholder="Pegá el enlace de la cancha" value="{{maps}}" onChange="{{onMaps}}" aria-invalid="{{mapsInvalid}}" style="flex-grow: 1; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px 0 38px; font-size: 16px; font-family: inherit; border: {{mapsBorder}}; border-radius: 10px; background: #FBFAF7; color: #16181D">
+</div>
+<sc-if value="{{mapsErr}}" hint-placeholder-val="{{ false }}"><div style="font-size: 13px; color: #9F1D1D">Ese enlace no parece de Google Maps.</div></sc-if>
+<div style="font-size: 13px; line-height: 1.45; color: #4A4E57">En Google Maps buscá la cancha, tocá Compartir y copiá el enlace. Así los jugadores ven cómo llegar.</div>
+</div>
+
+<div style="height: 1px; background: #E6E1D5"></div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="cp-name" style="font-size: 13px; font-weight: 600; color: #4A4E57">Tu nombre</label>
+<input id="cp-name" type="text" autocomplete="name" placeholder="ej. Nico" value="{{name}}" onChange="{{onName}}" aria-invalid="{{nameInvalid}}" style="height: 46px; box-sizing: border-box; padding: 0 14px; font-size: 16px; font-family: inherit; border: {{nameBorder}}; border-radius: 10px; background: #FBFAF7; color: #16181D">
+<sc-if value="{{nameErr}}" hint-placeholder-val="{{ false }}"><div style="font-size: 13px; color: #9F1D1D">Poné tu nombre.</div></sc-if>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="cp-email" style="font-size: 13px; font-weight: 600; color: #4A4E57">Tu mail</label>
+<input id="cp-email" type="email" autocomplete="email" inputmode="email" placeholder="nombre@correo.com" value="{{email}}" onChange="{{onEmail}}" aria-invalid="{{emailInvalid}}" style="height: 46px; box-sizing: border-box; padding: 0 14px; font-size: 16px; font-family: inherit; border: {{emailBorder}}; border-radius: 10px; background: #FBFAF7; color: #16181D">
+<sc-if value="{{emailErr}}" hint-placeholder-val="{{ false }}"><div style="font-size: 13px; color: #9F1D1D">Revisá el mail, parece que le falta algo.</div></sc-if>
+<div style="font-size: 13px; line-height: 1.45; color: #4A4E57">Te mandamos el enlace de organizador para que no lo pierdas. No hace falta crear cuenta.</div>
+</div>
+
+<button type="button" onClick="{{create}}" style="height: 52px; margin-top: 4px; border: 0; border-radius: 12px; background: #16181D; color: #FFFFFF; font-size: 17px; font-weight: 600; cursor: pointer">Crear partido</button>
+</div>
+</sc-if>
+
+<sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="width: 36px; height: 36px; border-radius: 50%; background: #2F7F4F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', Georgia, serif; font-weight: 800; font-size: 24px">¡Partido creado!</h2>
+</div>
+<div style="font-size: 15px; line-height: 1.5; color: #4A4E57">{{summary}}</div>
+<sc-if value="{{hasMaps}}" hint-placeholder-val="{{ false }}"><a href="{{mapsHref}}" target="_blank" rel="noopener" style="display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; min-height: 32px; font-size: 15px; font-weight: 600; color: #1F5C3A; text-decoration: underline; text-underline-offset: 3px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"></path><circle cx="12" cy="9.5" r="2.5"></circle></svg>Ver la cancha en Google Maps</a></sc-if>
+
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #F4F1EA; border-radius: 14px">
+<div style="font-weight: 600; font-size: 15px">Enlace para invitar</div>
+<div style="display: flex; gap: 8px; align-items: center">
+<div style="flex-grow: 1; min-width: 0; height: 44px; box-sizing: border-box; padding: 0 12px; display: flex; align-items: center; background: #FFFFFF; border: 1px solid #DDD8CC; border-radius: 10px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{publicUrl}}</div>
+<button type="button" onClick="{{copyPublic}}" style="height: 44px; padding: 0 16px; border: 0; border-radius: 10px; background: #16181D; color: #FFFFFF; font-size: 15px; font-weight: 600; cursor: pointer; flex-shrink: 0">{{copyPublicLabel}}</button>
+</div>
+<div style="font-size: 13px; color: #4A4E57">Pasalo por el grupo para que se anoten.</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #FEF3C7; border: 1px solid #E8C65A; border-radius: 14px">
+<div style="font-weight: 600; font-size: 15px">Tu enlace de organizador</div>
+<div style="display: flex; gap: 8px; align-items: center">
+<div style="flex-grow: 1; min-width: 0; height: 44px; box-sizing: border-box; padding: 0 12px; display: flex; align-items: center; background: #FFFFFF; border: 1px solid #E8C65A; border-radius: 10px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{adminUrl}}</div>
+<button type="button" onClick="{{copyAdmin}}" style="height: 44px; padding: 0 16px; border: 1px solid #16181D; border-radius: 10px; background: #FFFFFF; color: #16181D; font-size: 15px; font-weight: 600; cursor: pointer; flex-shrink: 0">{{copyAdminLabel}}</button>
+</div>
+<div style="font-size: 13px; line-height: 1.45; color: #5C4A0E">{{adminNote}}</div>
+</div>
+
+<a href="Phone.dc.html" style="height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #16181D; color: #FFFFFF; font-size: 17px; font-weight: 600; text-decoration: none">Ir al panel del organizador</a>
+<button type="button" onClick="{{reset}}" style="height: 44px; border: 0; background: transparent; color: #4A4E57; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: underline">Crear otro partido</button>
+</div>
+</sc-if>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.blank();
+  }
+
+  blank() {
+    return { format: '5', title: '', date: '', time: '', venue: '', maps: '', name: '', email: '', tried: false, done: false, id: '', copied: '' };
+  }
+
+  errors() {
+    const s = this.state;
+    return {
+      date: !s.date,
+      time: !s.time,
+      venue: !s.venue.trim(),
+      name: !s.name.trim(),
+      email: !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s.email.trim()),
+      maps: !!s.maps.trim() && !/^(https?:\/\/)?(maps\.app\.goo\.gl|goo\.gl\/maps|(www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+)/i.test(s.maps.trim())
+    };
+  }
+
+  create() {
+    const e = this.errors();
+    if (e.date || e.time || e.venue || e.name || e.email || e.maps) { this.setState({ tried: true }); return; }
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    let id = '';
+    for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
+    this.setState({ done: true, id: id, copied: '' });
+  }
+
+  niceDate(iso) {
+    const p = (iso || '').split('-').map(Number);
+    if (p.length !== 3 || !p[0]) return '';
+    const d = new Date(p[0], p[1] - 1, p[2]);
+    const days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    return days[d.getDay()] + ' ' + p[2] + '/' + p[1];
+  }
+
+  renderVals() {
+    const s = this.state;
+    const e = this.errors();
+    const show = (k) => s.tried && e[k];
+    const border = (k) => show(k) ? '2px solid #9F1D1D' : '1px solid #C9C3B5';
+    const set = (k) => (ev) => this.setState({ [k]: ev.target.value });
+    const title = s.title.trim() || ('Partido del ' + (this.niceDate(s.date).split(' ')[0] || 'día'));
+    const publicUrl = 'tudominio.com/p/' + s.id;
+    const adminUrl = 'tudominio.com/p/' + s.id + '/admin?k=••••••';
+
+    return {
+      editing: !s.done, done: s.done,
+      formats: ['5', '7'].map((f) => ({
+        label: f + ' vs ' + f, pressed: String(s.format === f),
+        bg: s.format === f ? '#FFFFFF' : 'transparent',
+        shadow: s.format === f ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
+        pick: () => this.setState({ format: f })
+      })),
+      title: s.title, date: s.date, time: s.time, venue: s.venue, maps: s.maps, name: s.name, email: s.email,
+      onTitle: set('title'), onDate: set('date'), onTime: set('time'), onVenue: set('venue'), onMaps: set('maps'), onName: set('name'), onEmail: set('email'),
+      dateErr: show('date'), timeErr: show('time'), venueErr: show('venue'), mapsErr: show('maps'), nameErr: show('name'), emailErr: show('email'),
+      dateInvalid: String(show('date')), timeInvalid: String(show('time')), venueInvalid: String(show('venue')), mapsInvalid: String(show('maps')), nameInvalid: String(show('name')), emailInvalid: String(show('email')),
+      dateBorder: border('date'), timeBorder: border('time'), venueBorder: border('venue'), mapsBorder: border('maps'), nameBorder: border('name'), emailBorder: border('email'),
+      create: () => this.create(),
+      summary: title + ' · ' + this.niceDate(s.date) + ', ' + s.time + ' · ' + s.venue.trim() + ' · ' + s.format + ' vs ' + s.format,
+      publicUrl: publicUrl,
+      hasMaps: !!s.maps.trim() && !e.maps,
+      mapsHref: /^https?:\/\//i.test(s.maps.trim()) ? s.maps.trim() : 'https://' + s.maps.trim(),
+      adminUrl: adminUrl,
+      adminNote: 'Con este enlace editás el partido. No lo compartas. También te lo mandamos a ' + s.email.trim() + '.',
+      copyPublic: () => this.setState({ copied: 'public' }),
+      copyAdmin: () => this.setState({ copied: 'admin' }),
+      copyPublicLabel: s.copied === 'public' ? 'Copiado' : 'Copiar',
+      copyAdminLabel: s.copied === 'admin' ? 'Copiado' : 'Copiar',
+      reset: () => this.setState(this.blank())
+    };
+  }
+}
+</script>
+</body>
+</html>

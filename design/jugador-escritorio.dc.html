@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anotarse al partido</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'IBM Plex Sans',system-ui,sans-serif;background:#F4F1EA;color:#16181D}
+a{color:#1F2A5C}a:hover{color:#11183A}
+button{font-family:inherit}
+input:focus-visible,button:focus-visible{outline:3px solid #E0A800;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 1280px; height: 960px; box-sizing: border-box; padding: 32px; display: flex; flex-direction: row; gap: 32px; background: #F4F1EA; color: #16181D; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+
+<aside style="width: 344px; flex-shrink: 0; display: flex; flex-direction: column; gap: 22px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 12px; font-weight: 600; letter-spacing: 0.12em; color: #5A5E66">PARTIDO ENTRE AMIGOS</div>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', Georgia, serif; font-weight: 800; font-size: 40px; line-height: 1.05">Fútbol del viernes</h1>
+<div style="font-size: 15px; color: #4A4E57">[DÍA · HORA]</div>
+<a href="https://maps.google.com" target="_blank" rel="noopener" style="display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; min-height: 32px; font-size: 15px; font-weight: 600; color: #1F5C3A; text-decoration: underline; text-underline-offset: 3px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"></path><circle cx="12" cy="9.5" r="2.5"></circle></svg>[CANCHA] · Cómo llegar</a>
+<div style="font-size: 14px; color: #4A4E57">Organiza [NOMBRE]</div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #E6E1D5; border-radius: 12px">
+<div style="font-family: 'Bricolage Grotesque', Georgia, serif; font-weight: 800; font-size: 28px; font-variant-numeric: tabular-nums; min-width: 32px; text-align: center">{{missingNum}}</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<div style="font-weight: 600; font-size: 15px">{{missingLabel}}</div>
+<div style="font-size: 13px; color: #4A4E57">{{formatLine}}</div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 20px; background: #FFFFFF; border: 1px solid #DDD8CC; border-radius: 16px">
+<sc-if value="{{notJoined}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="font-family: 'Bricolage Grotesque', Georgia, serif; font-weight: 800; font-size: 20px">Anotate</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="player-self-name" style="font-size: 13px; font-weight: 600; color: #4A4E57">Tu nombre</label>
+<input id="player-self-name" type="text" autocomplete="off" placeholder="ej. Nico" value="{{name}}" onChange="{{onName}}" onKeyDown="{{onKey}}" style="height: 44px; box-sizing: border-box; padding: 0 14px; font-size: 16px; font-family: inherit; border: 1px solid #C9C3B5; border-radius: 10px; background: #FBFAF7; color: #16181D">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 13px; font-weight: 600; color: #4A4E57">Equipo</div>
+<div role="group" aria-label="Equipo" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{teamPick}}" as="tp" hint-placeholder-count="2">
+<button type="button" aria-pressed="{{tp.pressed}}" onClick="{{tp.pick}}" style="height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; background: #FFFFFF; color: #16181D; border: {{tp.border}}">
+<span style="width: 14px; height: 14px; border-radius: 50%; background: {{tp.color}}; border: 1px solid #8A8577"></span>{{tp.label}}</button>
+</sc-for>
+</div>
+</div>
+<div style="font-size: 13px; line-height: 1.45; color: #4A4E57; min-height: 38px">{{hint}}</div>
+<button type="button" onClick="{{join}}" style="height: 48px; border: 0; border-radius: 12px; background: #16181D; color: #FFFFFF; font-size: 16px; font-weight: 600; cursor: pointer">{{joinLabel}}</button>
+</div>
+</sc-if>
+<sc-if value="{{joined}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 28px; height: 28px; border-radius: 50%; background: #2F7F4F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; flex-shrink: 0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>
+<div style="font-family: 'Bricolage Grotesque', Georgia, serif; font-weight: 800; font-size: 20px">{{meTitle}}</div>
+</div>
+<div style="font-size: 15px; line-height: 1.5">{{meLine}}</div>
+<div style="font-size: 13px; line-height: 1.45; color: #4A4E57; min-height: 38px">{{moveHint}}</div>
+<sc-if value="{{canMove}}" hint-placeholder-val="{{ false }}">
+<button type="button" onClick="{{moveMe}}" style="height: 48px; width: 100%; border: 0; border-radius: 12px; background: #16181D; color: #FFFFFF; font-size: 16px; font-weight: 600; cursor: pointer">Cambiarme a este puesto</button>
+</sc-if>
+<button type="button" onClick="{{leave}}" style="height: 44px; border: 1px solid #C9C3B5; border-radius: 12px; background: #FFFFFF; color: #9F1D1D; font-size: 15px; font-weight: 600; cursor: pointer">Bajarme del partido</button>
+</div>
+</sc-if>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 16px">
+<sc-for list="{{rosters}}" as="r" hint-placeholder-count="2">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="width: 14px; height: 14px; border-radius: 50%; background: {{r.color}}; border: 1px solid #8A8577"></span>
+<span style="font-weight: 600; font-size: 15px">{{r.label}}</span>
+<span style="margin-left: auto; font-size: 13px; color: #4A4E57">{{r.count}}</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{r.people}}" as="p" hint-placeholder-count="3">
+<span style="display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 999px; background: {{p.bg}}; border: {{p.border}}; font-size: 14px; font-weight: {{p.weight}}">{{p.name}}</span>
+</sc-for>
+<sc-if value="{{r.empty}}" hint-placeholder-val="{{ false }}">
+<span style="font-size: 14px; color: #6A6E76">Nadie todavía</span>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+
+<button type="button" onClick="{{share}}" style="margin-top: auto; height: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid #16181D; border-radius: 12px; background: transparent; color: #16181D; font-size: 16px; font-weight: 600; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"></path><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"></path></svg>{{shareLabel}}</button>
+</aside>
+
+<main style="flex-grow: 1; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 52px">
+<sc-for list="{{formBars}}" as="fb" hint-placeholder-count="2">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 14px; height: 14px; border-radius: 50%; background: {{fb.color}}; border: 1px solid #8A8577"></span>
+<span style="font-weight: 600; font-size: 16px">{{fb.label}}</span>
+<span style="padding: 4px 10px; border-radius: 8px; background: #E6E1D5; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums">{{fb.form}}</span>
+</div>
+</sc-for>
+</div>
+
+<div style="position: relative; width: 840px; height: 544px; border-radius: 14px; overflow: hidden; background: repeating-linear-gradient(90deg, #2F7F4F 0px, #2F7F4F 60px, #2A7447 60px, #2A7447 120px); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15); user-select: none">
+<svg viewBox="0 0 105 68" width="840" height="544" style="position: absolute; left: 0; top: 0; pointer-events: none" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="0.35">
+<rect x="2" y="2" width="101" height="64"></rect>
+<line x1="52.5" y1="2" x2="52.5" y2="66"></line>
+<circle cx="52.5" cy="34" r="9.15"></circle>
+<circle cx="52.5" cy="34" r="0.5" fill="rgba(255,255,255,0.8)"></circle>
+<rect x="2" y="13.84" width="16.5" height="40.32"></rect>
+<rect x="2" y="24.84" width="5.5" height="18.32"></rect>
+<path d="M18.5 26.69 A9.15 9.15 0 0 1 18.5 41.31"></path>
+<circle cx="13" cy="34" r="0.45" fill="rgba(255,255,255,0.8)"></circle>
+<rect x="0.4" y="30.34" width="1.6" height="7.32"></rect>
+<rect x="86.5" y="13.84" width="16.5" height="40.32"></rect>
+<rect x="97.5" y="24.84" width="5.5" height="18.32"></rect>
+<path d="M86.5 26.69 A9.15 9.15 0 0 0 86.5 41.31"></path>
+<circle cx="92" cy="34" r="0.45" fill="rgba(255,255,255,0.8)"></circle>
+<rect x="103" y="30.34" width="1.6" height="7.32"></rect>
+</svg>
+<sc-for list="{{tokens}}" as="t" hint-placeholder-count="14">
+<div style="position: absolute; left: {{t.x}}%; top: {{t.y}}%; transform: translate(-50%, -50%); z-index: {{t.z}}">
+<sc-if value="{{t.filled}}" hint-placeholder-val="{{ true }}">
+<div role="img" aria-label="{{t.aria}}" style="width: 48px; height: 48px; box-sizing: border-box; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: {{t.bg}}; color: {{t.fg}}; border: {{t.border}}; box-shadow: {{t.ring}}; font-size: 16px; font-weight: 600; letter-spacing: 0.02em">{{t.text}}</div>
+<div style="position: absolute; left: 50%; top: 54px; transform: translateX(-50%); white-space: nowrap; padding: 2px 8px; border-radius: 6px; background: {{t.tagBg}}; color: {{t.tagFg}}; font-size: 13px; font-weight: 600; pointer-events: none">{{t.name}}</div>
+</sc-if>
+<sc-if value="{{t.open}}" hint-placeholder-val="{{ false }}">
+<button type="button" aria-label="{{t.aria}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}" style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; background: {{t.bg}}; color: #FFFFFF; border: 2px dashed rgba(255,255,255,0.85); box-shadow: {{t.ring}}; font-size: 12px; font-weight: 600; letter-spacing: 0.02em">{{t.text}}</button>
+</sc-if>
+</div>
+</sc-for>
+</div>
+
+<div style="display: flex; align-items: center; gap: 20px; font-size: 13px; color: #4A4E57">
+<span>Tocá un puesto libre para elegirlo.</span>
+<span>El organizador arma las formaciones.</span>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"colorA":{"editor":"color","default":"#F2EEE3","options":["#F2EEE3","#FACC15","#F97316","#DC2626"],"section":"Equipos"},"colorB":{"editor":"color","default":"#1F2A5C","options":["#1F2A5C","#111111","#7C2D12","#6D28D9"],"section":"Equipos"},"$preview":{"width":1280,"height":960}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    // Lo que el jugador ve lo decidió el organizador: formato, formaciones y posiciones.
+    this.state = {
+      format: '7',
+      form: { A: '3-2-1', B: '2-3-1' },
+      pos: { A: this.layout('3-2-1', 'A'), B: this.layout('2-3-1', 'B') },
+      slots: { A: ['Nico', null, 'Santi', null, 'Fede', null, null], B: ['Mati', 'Joaco', null, null, null, null, null] },
+      bench: { A: [], B: [] },
+      name: '',
+      joinTeam: 'A',
+      sel: null,
+      me: null,
+      copied: false
+    };
+  }
+
+  layout(form, team) {
+    const lines = form.split('-').map(Number);
+    const L = lines.length;
+    const out = [{ x: 5.5, y: 50, role: 'ARQ' }];
+    lines.forEach((k, i) => {
+      const x = L === 1 ? 30 : 17 + i * (25 / (L - 1));
+      const role = i === 0 ? 'DEF' : (i === L - 1 ? 'DEL' : 'MED');
+      for (let j = 0; j < k; j++) out.push({ x: x, y: 15 + (j + 0.5) * 70 / k, role: role });
+    });
+    return team === 'B' ? out.map((p) => ({ x: 100 - p.x, y: p.y, role: p.role })) : out;
+  }
+
+  textOn(hex) {
+    const h = (hex || '#000000').replace('#', '');
+    const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#16181D' : '#FFFFFF';
+  }
+
+  initials(name) {
+    const parts = name.trim().split(/\s+/);
+    return ((parts[0] || '')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : (parts[0] || '')[1] || '')).toUpperCase();
+  }
+
+  pick(team, idx) {
+    const s = this.state.sel;
+    const same = s && s.team === team && s.idx === idx;
+    this.setState({ sel: same ? null : { team: team, idx: idx }, joinTeam: this.state.me ? this.state.joinTeam : team });
+  }
+
+  join() {
+    const s = this.state;
+    const name = s.name.trim();
+    if (!name || s.me) return;
+    const team = s.sel ? s.sel.team : s.joinTeam;
+    const sl = s.slots[team].slice();
+    const idx = s.sel && !sl[s.sel.idx] ? s.sel.idx : sl.indexOf(null);
+    const bench = Object.assign({}, s.bench);
+    let me;
+    if (idx >= 0) { sl[idx] = name; me = { team: team, idx: idx, name: name }; }
+    else { bench[team] = s.bench[team].concat([name]); me = { team: team, idx: -1, name: name }; }
+    this.setState({ slots: Object.assign({}, s.slots, { [team]: sl }), bench: bench, name: '', sel: null, me: me });
+  }
+
+  takeOut(slots, bench, me) {
+    if (me.idx >= 0) {
+      const sl = slots[me.team].slice();
+      const b = bench[me.team].slice();
+      sl[me.idx] = b.length ? b.shift() : null;
+      slots[me.team] = sl; bench[me.team] = b;
+    } else {
+      bench[me.team] = bench[me.team].filter((n) => n !== me.name);
+    }
+  }
+
+  moveMe() {
+    const s = this.state;
+    if (!s.me || !s.sel || s.slots[s.sel.team][s.sel.idx]) return;
+    const slots = Object.assign({}, s.slots), bench = Object.assign({}, s.bench);
+    this.takeOut(slots, bench, s.me);
+    const sl = slots[s.sel.team].slice();
+    sl[s.sel.idx] = s.me.name;
+    slots[s.sel.team] = sl;
+    this.setState({ slots: slots, bench: bench, me: { team: s.sel.team, idx: s.sel.idx, name: s.me.name }, sel: null });
+  }
+
+  leave() {
+    const s = this.state;
+    if (!s.me) return;
+    const slots = Object.assign({}, s.slots), bench = Object.assign({}, s.bench);
+    this.takeOut(slots, bench, s.me);
+    this.setState({ slots: slots, bench: bench, me: null, sel: null });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const colors = { A: this.props.colorA ?? '#F2EEE3', B: this.props.colorB ?? '#1F2A5C' };
+    const labels = { A: 'Claros', B: 'Oscuros' };
+    const roleNames = { ARQ: 'arquero', DEF: 'defensa', MED: 'mediocampo', DEL: 'delantero' };
+    const N = Number(s.format);
+    const me = s.me;
+    const isMe = (t, i) => me && me.team === t && me.idx === i;
+
+    const tokens = [];
+    ['A', 'B'].forEach((t) => {
+      s.pos[t].slice(0, N).forEach((p, i) => {
+        const name = s.slots[t][i];
+        const selected = s.sel && s.sel.team === t && s.sel.idx === i;
+        const mine = isMe(t, i);
+        tokens.push({
+          x: p.x.toFixed(2), y: p.y.toFixed(2),
+          z: selected || mine ? 10 : 1,
+          filled: !!name, open: !name,
+          name: mine ? 'Vos' : (name || ''),
+          text: name ? this.initials(name) : p.role,
+          bg: name ? colors[t] : (selected ? 'rgba(250,204,21,0.35)' : 'rgba(255,255,255,0.14)'),
+          fg: name ? this.textOn(colors[t]) : '#FFFFFF',
+          border: mine ? '3px solid #FACC15' : '2px solid #FFFFFF',
+          ring: selected ? '0 0 0 4px #FACC15, 0 4px 10px rgba(0,0,0,0.35)' : '0 2px 6px rgba(0,0,0,0.3)',
+          tagBg: mine ? '#FACC15' : 'rgba(12,20,16,0.72)',
+          tagFg: mine ? '#16181D' : '#FFFFFF',
+          pressed: String(!!selected),
+          aria: name ? (mine ? 'Vos, ' : name + ', ') + roleNames[p.role] + ' de ' + labels[t] : 'Puesto libre de ' + roleNames[p.role] + ' en ' + labels[t],
+          pick: () => this.pick(t, i)
+        });
+      });
+    });
+
+    const rosters = ['A', 'B'].map((t) => {
+      const people = [];
+      s.slots[t].forEach((n, i) => { if (n) { const m = isMe(t, i); people.push({ name: m ? n + ' (vos)' : n, bg: m ? '#FEF3C7' : '#FFFFFF', border: m ? '1px solid #D9A400' : '1px solid #DDD8CC', weight: m ? 600 : 400 }); } });
+      s.bench[t].forEach((n) => { const m = me && me.idx < 0 && me.team === t && me.name === n; people.push({ name: n + (m ? ' (vos, banco)' : ' (banco)'), bg: m ? '#FEF3C7' : '#ECE8DE', border: m ? '1px solid #D9A400' : '1px solid #DDD8CC', weight: m ? 600 : 400 }); });
+      const on = s.slots[t].filter(Boolean).length;
+      return { label: labels[t], color: colors[t], people: people, empty: people.length === 0, count: on + '/' + N + (s.bench[t].length ? ' · ' + s.bench[t].length + ' en el banco' : '') };
+    });
+
+    const missing = s.slots.A.filter((n) => !n).length + s.slots.B.filter((n) => !n).length;
+    const sel = s.sel;
+    const selRole = sel ? s.pos[sel.team][sel.idx].role : '';
+    const selTaken = sel ? s.slots[sel.team][sel.idx] : null;
+
+    let hint = 'Tocá un puesto libre en la cancha para elegir dónde jugás, o anotate y te toca el primer lugar libre.';
+    if (sel && !selTaken) hint = 'Vas a jugar de ' + roleNames[selRole] + ' en ' + labels[sel.team] + '.';
+    const full = s.slots[sel ? sel.team : s.joinTeam].indexOf(null) < 0;
+
+    let meTitle = '', meLine = '', moveHint = '';
+    if (me) {
+      meTitle = '¡Listo, ' + me.name + '!';
+      meLine = me.idx >= 0
+        ? 'Jugás de ' + roleNames[s.pos[me.team][me.idx].role] + ' en ' + labels[me.team] + '.'
+        : 'Estás en el banco de ' + labels[me.team] + '. Si se libera un lugar, entrás vos.';
+      moveHint = sel && !selTaken
+        ? 'Elegiste el puesto de ' + roleNames[selRole] + ' en ' + labels[sel.team] + '.'
+        : '¿Querés cambiar de lugar? Tocá un puesto libre en la cancha.';
+    }
+
+    return {
+      name: s.name,
+      onName: (e) => this.setState({ name: e.target.value }),
+      onKey: (e) => { if (e.key === 'Enter') this.join(); },
+      join: () => this.join(),
+      joinLabel: full ? 'Anotarme al banco' : 'Anotarme',
+      hint: hint,
+      joined: !!me, notJoined: !me,
+      meTitle: meTitle, meLine: meLine, moveHint: moveHint,
+      canMove: !!(me && sel && !selTaken),
+      moveMe: () => this.moveMe(),
+      leave: () => this.leave(),
+      missingNum: missing,
+      missingLabel: missing === 0 ? '¡Equipos completos!' : (missing === 1 ? 'Falta 1 jugador' : 'Faltan ' + missing + ' jugadores'),
+      formatLine: N + ' vs ' + N + ' · ' + (N * 2) + ' jugadores en cancha',
+      teamPick: ['A', 'B'].map((t) => {
+        const on = (sel ? sel.team : s.joinTeam) === t;
+        return { label: labels[t], color: colors[t], pressed: String(on), border: on ? '2px solid #16181D' : '1px solid #C9C3B5', pick: () => this.setState({ joinTeam: t, sel: sel && sel.team !== t ? null : sel }) };
+      }),
+      formBars: ['A', 'B'].map((t) => ({ label: labels[t], color: colors[t], form: s.form[t] })),
+      tokens: tokens,
+      rosters: rosters,
+      share: () => this.setState({ copied: true }),
+      shareLabel: s.copied ? 'Enlace copiado' : 'Invitar a alguien'
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+/* Etapa (a): placeholder. Los tokens del diseño se vuelcan acá (@theme) en la etapa (b2). */
+body {
+  background: #f4f1ea;
+  color: #16181d;
+  font-family: system-ui, sans-serif;
+}
