@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { Match } from "@/lib/domain/match";
 import { useMatch } from "@/lib/hooks/useMatch";
 import { ConnectionBanner } from "./ConnectionBanner";
@@ -27,12 +28,30 @@ export function MatchClient({
 }) {
   const state = useMatch(initial);
   const { match, status, live, isAdmin } = state;
+  const startsAt = Date.parse(match.starts_at);
+
+  // "Ahora" según el reloj de Postgres (el que usa el trigger de cierre).
+  // Arranca en la hora del render del servidor y se actualiza con un
+  // temporizador justo cuando empieza el partido: así, si tenés la página
+  // abierta, se cierra sola en vez de mostrar botones que la base rechazaría.
+  const [now, setNow] = useState(renderedAt);
+  useEffect(() => {
+    // Diferencia entre el reloj del celular y el de Postgres (pueden no coincidir).
+    const offset = renderedAt - Date.now();
+    const serverNow = () => Date.now() + offset;
+    const wait = startsAt - serverNow();
+    // setTimeout no admite esperas de más de ~24 días; más allá, ni vale la pena.
+    if (wait <= 0 || wait > 2 ** 31 - 1) return;
+    const t = setTimeout(() => setNow(serverNow()), wait + 500);
+    return () => clearTimeout(t);
+  }, [startsAt, renderedAt]);
 
   if (status === "gone") {
     return <NotFoundCard title="Este partido ya no existe" body="Lo borraron mientras lo mirabas." />;
   }
 
-  const closed = new Date(match.starts_at).getTime() <= renderedAt;
+  // Si el admin reprograma a una fecha futura, startsAt > now y se reabre.
+  const closed = startsAt <= now;
 
   return (
     <>

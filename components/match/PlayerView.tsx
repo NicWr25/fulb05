@@ -169,6 +169,15 @@ export function PlayerView({
   let card: React.ReactNode = null;
   if (closed) {
     card = null;
+  } else if (status === "connecting") {
+    // Card neutra mientras se sabe quién sos: evita mostrar "Anotate" a
+    // alguien que ya está anotado (o al organizador, que ve otro panel).
+    card = (
+      <Card aria-busy="true">
+        <CardTitle>Conectando…</CardTitle>
+        <p className="min-h-[38px] text-13 leading-[1.45] text-ink-2">Buscando tu lugar en el partido.</p>
+      </Card>
+    );
   } else if (status === "error") {
     card = (
       <Card>

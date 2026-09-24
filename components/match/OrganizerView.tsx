@@ -255,7 +255,7 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
                   type="button"
                   onClick={edit.open}
                   aria-label="Editar datos del partido"
-                  className="flex h-11 items-center gap-2 rounded-btn border border-ink px-3 text-14 font-semibold text-ink lg:px-3.5"
+                  className="flex h-11 min-w-11 items-center justify-center gap-2 rounded-btn border border-ink px-3 text-14 font-semibold text-ink lg:px-3.5"
                 >
                   <EditIcon />
                   <span className="hidden lg:inline">Editar</span>
