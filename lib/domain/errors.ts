@@ -22,6 +22,8 @@ const BY_MESSAGE: Record<string, string> = {
   not_admin: "Solo el organizador puede hacer eso.",
   not_authenticated: "Se perdió tu sesión. Recargá la página.",
   invalid_layout: "No se pudieron guardar las posiciones.",
+  wrong_half: "Cada equipo se acomoda en su mitad de la cancha.",
+  not_your_token: "Solo podés mover tu propia ficha.",
 };
 
 export const SLOT_TAKEN_MESSAGE = "Ese lugar lo acaba de ocupar otra persona. Elegí otro.";
@@ -50,6 +52,8 @@ export function errorMessage(err: AnyError): string {
     return "Revisá los datos: alguno no es válido.";
   }
   if (err.code === "42501") return "No tenés permiso para hacer eso.";
+  // Clave foránea rota: casi siempre, una sesión cuyo usuario ya no existe.
+  if (err.code === "23503") return "Se venció tu sesión. Recargá la página y probá de nuevo.";
 
   // fetch() fallido: sin conexión o el servidor no responde.
   if (err.name === "TypeError" || err.message?.toLowerCase().includes("fetch")) {

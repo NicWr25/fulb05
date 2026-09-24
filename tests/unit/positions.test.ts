@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  clampToHalf,
   defaultLayout,
   defaultTeamLayout,
   fromScreen,
+  inOwnHalf,
   initials,
   resolveLayout,
   slotRoles,
@@ -98,5 +100,49 @@ describe("initials", () => {
     ["", ""],
   ])("%j -> %j", (name, expected) => {
     expect(initials(name)).toBe(expected);
+  });
+});
+
+describe("mitades de la cancha", () => {
+  it("Claros juegan en x ≤ 50 y Oscuros en x ≥ 50 (la línea del medio vale para los dos)", () => {
+    expect(inOwnHalf("A", { x: 50, y: 10 })).toBe(true);
+    expect(inOwnHalf("A", { x: 50.1, y: 10 })).toBe(false);
+    expect(inOwnHalf("B", { x: 50, y: 10 })).toBe(true);
+    expect(inOwnHalf("B", { x: 49.9, y: 10 })).toBe(false);
+  });
+
+  it("clampToHalf frena la ficha en la línea del medio", () => {
+    expect(clampToHalf("A", { x: 80, y: 40 })).toEqual({ x: 50, y: 40 });
+    expect(clampToHalf("B", { x: 10, y: 40 })).toEqual({ x: 50, y: 40 });
+  });
+
+  it("clampToHalf también la mantiene dentro de la cancha", () => {
+    expect(clampToHalf("A", { x: -5, y: 120 })).toEqual({ x: 3, y: 97 });
+    expect(clampToHalf("B", { x: 130, y: -1 })).toEqual({ x: 97, y: 3 });
+  });
+
+  it("la disposición por defecto respeta las mitades", () => {
+    for (const format of [5, 7] as const) {
+      const { A, B } = defaultLayout(format);
+      expect(A.every((p) => inOwnHalf("A", p))).toBe(true);
+      expect(B.every((p) => inOwnHalf("B", p))).toBe(true);
+    }
+  });
+});
+
+describe("paridad con SQL", () => {
+  // Mismos valores que devuelve private.default_layout(7) en la base
+  // (supabase/migrations/..._player_positions.sql). Si cambiás el algoritmo
+  // en un lado, este test te recuerda cambiarlo en el otro.
+  it("defaultTeamLayout(7, 'A') coincide con private.default_team_layout(7, 'A')", () => {
+    expect(defaultTeamLayout(7, "A")).toEqual([
+      { x: 5.5, y: 50 },
+      { x: 17, y: 26.67 },
+      { x: 17, y: 50 },
+      { x: 17, y: 73.33 },
+      { x: 29.5, y: 32.5 },
+      { x: 29.5, y: 67.5 },
+      { x: 42, y: 50 },
+    ]);
   });
 });

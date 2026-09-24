@@ -191,3 +191,41 @@
     }
   }
 }
+
+/*
+ * Sombra sobre la mitad RIVAL mientras se arrastra una ficha: muestra hasta
+ * dónde se puede llevar. En vertical, Claros (A) juegan abajo → se sombrea
+ * arriba; en apaisado, Claros juegan a la izquierda → se sombrea la derecha.
+ */
+@layer components {
+  .pitch-shade {
+    position: absolute;
+    pointer-events: none;
+    background: rgb(0 0 0 / 0.28);
+    left: 0;
+    right: 0;
+    height: 50%;
+  }
+  .pitch-shade[data-team="A"] {
+    top: 0;
+  }
+  .pitch-shade[data-team="B"] {
+    bottom: 0;
+  }
+  @media (width >= 64rem) {
+    .pitch-shade {
+      top: 0;
+      bottom: 0;
+      height: auto;
+      width: 50%;
+    }
+    .pitch-shade[data-team="A"] {
+      left: auto;
+      right: 0;
+    }
+    .pitch-shade[data-team="B"] {
+      left: 0;
+      right: auto;
+    }
+  }
+}

@@ -20,6 +20,12 @@ describe("errorMessage", () => {
     expect(errorMessage({ name: "TypeError", message: "Failed to fetch" })).toMatch(/conexión/);
   });
 
+  it("clave foránea rota (sesión de un usuario que ya no existe)", () => {
+    expect(errorMessage({ code: "23503", message: 'violates foreign key constraint "matches_created_by_fkey"' })).toMatch(
+      /sesión/,
+    );
+  });
+
   it("mensaje genérico para lo desconocido", () => {
     expect(errorMessage({ code: "XX000", message: "boom" })).toBe("Algo salió mal. Probá de nuevo.");
   });

@@ -32,18 +32,21 @@ const DEBOUNCE_MS = 150;
  *    También relee al reconectar, al volver a la pestaña y al recuperar
  *    internet, por si se perdió algún evento en el medio.
  */
+export type MatchState = ReturnType<typeof useMatch>;
+
 export function useMatch(initial: Match) {
   const [match, setMatch] = useState<Match>(initial);
   const [uid, setUid] = useState<string | null>(null);
   const [status, setStatus] = useState<MatchStatus>("connecting");
   const [live, setLive] = useState<LiveStatus>("connecting");
+  const [isAdmin, setIsAdmin] = useState(false);
   const idRef = useRef(initial.id);
   const playerIdsRef = useRef(new Set(initial.players.map((p) => p.id)));
 
   const reload = useCallback(async () => {
     const sb = supabaseBrowser();
     const id = idRef.current;
-    const [m, p] = await Promise.all([
+    const [m, p, a] = await Promise.all([
       sb
         .from("matches")
         .select("id, format, title, venue, maps_url, starts_at, timezone, organizer_name, layout")
@@ -56,8 +59,12 @@ export function useMatch(initial: Match) {
         // El banco se ordena por llegada al banco (el orden en que ascienden).
         .order("bench_since", { ascending: true, nullsFirst: true })
         .order("slot", { ascending: true }),
+      // ¿Soy admin? RLS solo deja ver las filas propias de match_admins, así
+      // que alcanza con preguntar si hay alguna para este partido.
+      sb.from("match_admins").select("match_id").eq("match_id", id).maybeSingle(),
     ]);
-    if (m.error || p.error) throw m.error ?? p.error;
+    if (m.error || p.error || a.error) throw m.error ?? p.error ?? a.error;
+    setIsAdmin(Boolean(a.data));
     if (!m.data) {
       setStatus("gone"); // se borró mientras lo mirábamos
       return;
@@ -171,5 +178,5 @@ export function useMatch(initial: Match) {
 
   const me: Player | null = uid ? (match.players.find((p) => p.user_id === uid) ?? null) : null;
 
-  return { match, uid, me, status, live, reload };
+  return { match, uid, me, isAdmin, status, live, reload };
 }

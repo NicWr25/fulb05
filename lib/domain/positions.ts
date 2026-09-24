@@ -26,13 +26,15 @@ export const ROLE_NAME: Record<Role, string> = {
 /**
  * Formación por defecto de cada formato (jugadores de campo por línea,
  * de atrás hacia adelante). El arquero va aparte.
- * No hay selector de formaciones en el MVP: el organizador reacomoda
- * arrastrando las fichas.
+ * No hay selector de formaciones en el MVP: cada jugador acomoda su ficha
+ * arrastrándola (dentro de su mitad), y el organizador puede acomodar todas.
  */
 export const DEFAULT_FORMATION: Record<Format, readonly number[]> = {
   5: [2, 2],
   7: [3, 2, 1],
 };
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Rol de cada lugar (slot) según la formación: 0 = ARQ, después línea por línea. */
 export function slotRoles(format: Format): Role[] {
@@ -57,7 +59,8 @@ export function defaultTeamLayout(format: Format, team: Team): Point[] {
   lines.forEach((count, i) => {
     const x = lines.length === 1 ? 30 : 17 + i * (25 / (lines.length - 1));
     for (let j = 0; j < count; j++) {
-      points.push({ x, y: 15 + ((j + 0.5) * 70) / count });
+      // Redondeo a 2 decimales: igual que private.default_team_layout() en SQL.
+      points.push({ x: round2(x), y: round2(15 + ((j + 0.5) * 70) / count) });
     }
   });
   return team === "B" ? points.map((p) => ({ x: 100 - p.x, y: p.y })) : points;
@@ -88,6 +91,29 @@ export function fromScreen(left: number, top: number, orientation: Orientation):
 }
 
 export const clampPercent = (n: number, min = 3, max = 97) => Math.min(max, Math.max(min, n));
+
+/**
+ * Mitad de la cancha de cada equipo (en x canónica): Claros juegan en x ≤ 50,
+ * Oscuros en x ≥ 50. Misma regla que private.in_own_half() en la base.
+ */
+export const MIDFIELD = 50;
+
+export function inOwnHalf(team: Team, p: Point): boolean {
+  return team === "A" ? p.x <= MIDFIELD : p.x >= MIDFIELD;
+}
+
+/**
+ * Lleva un punto al área permitida para ese equipo: dentro de la cancha y
+ * sin cruzar la mitad. Se usa MIENTRAS se arrastra, así la ficha "frena" en
+ * la línea del medio en vez de dejarte soltarla del otro lado.
+ */
+export function clampToHalf(team: Team, p: Point): Point {
+  const x = clampPercent(p.x);
+  return {
+    x: team === "A" ? Math.min(x, MIDFIELD) : Math.max(x, MIDFIELD),
+    y: clampPercent(p.y),
+  };
+}
 
 /** Iniciales para la ficha: "Nico" -> "NI", "Juan Pérez" -> "JP". */
 export function initials(name: string): string {

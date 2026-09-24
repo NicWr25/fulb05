@@ -131,7 +131,7 @@ export type Database = {
           created_by: string | null
           format: number
           id: string
-          layout: Json | null
+          layout: Json
           maps_url: string | null
           organizer_name: string
           starts_at: string
@@ -144,7 +144,7 @@ export type Database = {
           created_by?: string | null
           format: number
           id: string
-          layout?: Json | null
+          layout: Json
           maps_url?: string | null
           organizer_name: string
           starts_at: string
@@ -157,7 +157,7 @@ export type Database = {
           created_by?: string | null
           format?: number
           id?: string
-          layout?: Json | null
+          layout?: Json
           maps_url?: string | null
           organizer_name?: string
           starts_at?: string
@@ -190,9 +190,19 @@ export type Database = {
         Returns: Json
       }
       get_match_preview: { Args: { p_match_id: string }; Returns: Json }
+      move_token: {
+        Args: {
+          p_match_id: string
+          p_slot: number
+          p_team: string
+          p_x: number
+          p_y: number
+        }
+        Returns: undefined
+      }
       open_match: { Args: { p_match_id: string }; Returns: boolean }
-      set_layout: {
-        Args: { p_layout: Json; p_match_id: string }
+      reset_team_layout: {
+        Args: { p_match_id: string; p_team: string }
         Returns: undefined
       }
       update_match: {

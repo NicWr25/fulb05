@@ -1,7 +1,7 @@
 -- Tests de validaciones (CHECK) y límites contra abuso.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(11);
 
 insert into auth.users (id, aud, role, email) values
   ('00000000-0000-0000-0000-00000000000a', 'authenticated', 'authenticated', 'ana@test.local');
@@ -60,24 +60,6 @@ select throws_ok(
            values (%L, '00000000-0000-0000-0000-00000000000a', E'Nico\nmalo', 'A', 0)$$,
          (select v from ctx where k = 'id')),
   '23514', null, 'un nombre no puede tener saltos de línea');
-
--- ---------------------------------------------------------------------------
--- Layout
--- ---------------------------------------------------------------------------
-select lives_ok(
-  format($$select public.set_layout(%L, %L::jsonb)$$, (select v from ctx where k = 'id'),
-    '{"A":[{"x":5,"y":50},{"x":20,"y":30},{"x":20,"y":70},{"x":40,"y":30},{"x":40,"y":70}],
-      "B":[{"x":95,"y":50},{"x":80,"y":30},{"x":80,"y":70},{"x":60,"y":30},{"x":60,"y":70}]}'),
-  'el admin puede guardar un layout válido (5 puntos por equipo en fútbol 5)');
-select throws_ok(
-  format($$select public.set_layout(%L, %L::jsonb)$$, (select v from ctx where k = 'id'),
-    '{"A":[{"x":5,"y":50}],"B":[{"x":95,"y":50}]}'),
-  'P0001', 'invalid_layout', 'un layout con otra cantidad de puntos se rechaza');
-select throws_ok(
-  format($$select public.set_layout(%L, %L::jsonb)$$, (select v from ctx where k = 'id'),
-    '{"A":[{"x":500,"y":50},{"x":20,"y":30},{"x":20,"y":70},{"x":40,"y":30},{"x":40,"y":70}],
-      "B":[{"x":95,"y":50},{"x":80,"y":30},{"x":80,"y":70},{"x":60,"y":30},{"x":60,"y":70}]}'),
-  'P0001', 'invalid_layout', 'un layout con coordenadas fuera de 0..100 se rechaza');
 
 -- ---------------------------------------------------------------------------
 -- Rate limit: 10 partidos por identidad cada 24 h

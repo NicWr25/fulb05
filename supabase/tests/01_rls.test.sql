@@ -183,8 +183,8 @@ select is(
 
 select pg_temp.login('00000000-0000-0000-0000-00000000000c');
 select throws_ok(
-  format($$select public.set_layout(%L, null)$$, (select v from ctx where k = 'id')),
-  '42501', 'not_admin', 'alguien que no es admin no puede tocar el layout');
+  format($$select public.reset_team_layout(%L, 'A')$$, (select v from ctx where k = 'id')),
+  '42501', 'not_admin', 'alguien que no es admin no puede restablecer posiciones');
 select is(public.claim_admin((select v from ctx where k = 'id'), 'token-incorrecto'), false,
   'claim_admin con un token incorrecto devuelve false');
 select is((select count(*)::int from public.match_admins), 0,
