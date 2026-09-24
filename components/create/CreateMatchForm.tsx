@@ -13,7 +13,11 @@ import { PinIcon, WhatsAppIcon } from "@/components/ui/icons";
 import { ensureSession, supabaseBrowser } from "@/lib/supabase/browser";
 import { browserTimeZone } from "@/lib/domain/datetime";
 import { errorMessage } from "@/lib/domain/errors";
-import { adminSelfMessage, inviteMessage, whatsappUrl } from "@/lib/domain/share";
+import {
+  adminSelfMessage,
+  inviteMessage,
+  whatsappUrl,
+} from "@/lib/domain/share";
 import {
   LIMITS,
   normalizeMapsUrl,
@@ -36,7 +40,9 @@ type Created = { id: string; adminToken: string; input: CreateMatchInput };
 /** "viernes 26/9" a partir de "2026-09-26" (fecha local, sin zona horaria). */
 function niceDate(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
-  const day = new Date(y, m - 1, d).toLocaleDateString("es-UY", { weekday: "long" });
+  const day = new Date(y, m - 1, d).toLocaleDateString("es-UY", {
+    weekday: "long",
+  });
   return `${day} ${d}/${m}`;
 }
 
@@ -49,7 +55,10 @@ export function CreateMatchForm() {
 
   const errors = validateMatchInput(input);
   const show = (k: keyof typeof errors) => (tried ? errors[k] : undefined);
-  const set = <K extends keyof CreateMatchInput>(k: K) => (v: CreateMatchInput[K]) => setInput((s) => ({ ...s, [k]: v }));
+  const set =
+    <K extends keyof CreateMatchInput>(k: K) =>
+    (v: CreateMatchInput[K]) =>
+      setInput((s) => ({ ...s, [k]: v }));
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -57,7 +66,11 @@ export function CreateMatchForm() {
     setServerError(null);
     if (Object.keys(errors).length > 0) {
       // Llevar el foco al primer campo con error (útil con lector de pantalla y en el celu).
-      requestAnimationFrame(() => document.querySelector<HTMLInputElement>("[aria-invalid=true]")?.focus());
+      requestAnimationFrame(() =>
+        document
+          .querySelector<HTMLInputElement>("[aria-invalid=true]")
+          ?.focus(),
+      );
       return;
     }
 
@@ -100,7 +113,9 @@ export function CreateMatchForm() {
   return (
     <Card panel>
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        <h2 className="font-display text-24 font-extrabold lg:text-26">Nuevo partido</h2>
+        <h2 className="font-display text-24 font-extrabold lg:text-26">
+          Nuevo partido
+        </h2>
 
         <SegmentedControl
           label="Formato"
@@ -169,7 +184,7 @@ export function CreateMatchForm() {
         <TextField
           label="Tu nombre"
           autoComplete="name"
-          placeholder="ej. Nico"
+          placeholder="Tu nombre"
           maxLength={LIMITS.name}
           value={input.organizerName}
           onChange={(e) => set("organizerName")(e.target.value)}
@@ -191,7 +206,13 @@ export function CreateMatchForm() {
   );
 }
 
-function Created({ created, onReset }: { created: Created; onReset: () => void }) {
+function Created({
+  created,
+  onReset,
+}: {
+  created: Created;
+  onReset: () => void;
+}) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   // Este componente solo se muestra después de enviar el formulario (nunca en
   // el render del servidor), así que `window` siempre existe acá.
@@ -203,7 +224,8 @@ function Created({ created, onReset }: { created: Created; onReset: () => void }
   }, []);
 
   const { id, adminToken, input } = created;
-  const title = input.title.trim() || `Partido del ${niceDate(input.date).split(" ")[0]}`;
+  const title =
+    input.title.trim() || `Partido del ${niceDate(input.date).split(" ")[0]}`;
   const when = `${niceDate(input.date)}, ${input.time}`;
   const publicUrl = `${origin}/p/${id}`;
   // El token va en el FRAGMENTO (#): el navegador nunca lo manda al servidor,
@@ -217,15 +239,24 @@ function Created({ created, onReset }: { created: Created; onReset: () => void }
       <div className="flex flex-col gap-[18px]">
         <div className="flex items-center gap-3">
           <SuccessMark size={36} />
-          <h2 ref={headingRef} tabIndex={-1} className="font-display text-24 font-extrabold outline-none lg:text-26">
+          <h2
+            ref={headingRef}
+            tabIndex={-1}
+            className="font-display text-24 font-extrabold outline-none lg:text-26"
+          >
             ¡Partido creado!
           </h2>
         </div>
 
         <p className="text-15 leading-normal text-ink-2">
-          {title} · {when} · {input.venue.trim()} · {input.format} vs {input.format}
+          {title} · {when} · {input.venue.trim()} · {input.format} vs{" "}
+          {input.format}
         </p>
-        {maps && <MapsLink href={maps} className="text-15">Ver la cancha en Google Maps</MapsLink>}
+        {maps && (
+          <MapsLink href={maps} className="text-15">
+            Ver la cancha en Google Maps
+          </MapsLink>
+        )}
 
         <div className="flex flex-col gap-2">
           <LinkBox
@@ -235,7 +266,14 @@ function Created({ created, onReset }: { created: Created; onReset: () => void }
             note="Pasalo por el grupo para que se anoten."
           />
           <a
-            href={whatsappUrl(inviteMessage({ title, when, venue: input.venue.trim(), url: publicUrl }))}
+            href={whatsappUrl(
+              inviteMessage({
+                title,
+                when,
+                venue: input.venue.trim(),
+                url: publicUrl,
+              }),
+            )}
             target="_blank"
             rel="noopener noreferrer"
             className="flex h-12 items-center justify-center gap-2 rounded-btn border border-ink text-16 font-semibold text-ink no-underline hover:text-ink"

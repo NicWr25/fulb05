@@ -19,7 +19,7 @@ export default function Home() {
           Pasá el enlace.
         </h1>
         <p className="text-16 leading-normal text-ink-2 lg:max-w-[520px] lg:text-19">
-          Cada uno se anota solo, en su equipo y en su puesto. Vos solo acomodás las fichas.
+          Cada uno se anota solo, en su equipo y en su puesto.
         </p>
         {/* Los 3 pasos solo aparecen en escritorio, como en el diseño. */}
         <ol className="mt-2 hidden flex-col gap-4 lg:flex">

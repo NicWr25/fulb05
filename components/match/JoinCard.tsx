@@ -45,12 +45,16 @@ export function JoinCard({
 
   return (
     <Card>
-      <form onSubmit={submit} noValidate className="flex flex-col gap-3 lg:gap-3.5">
+      <form
+        onSubmit={submit}
+        noValidate
+        className="flex flex-col gap-3 lg:gap-3.5"
+      >
         <CardTitle>Anotate</CardTitle>
         <TextField
           label="Tu nombre"
           autoComplete="given-name"
-          placeholder="ej. Nico"
+          placeholder="Tu nombre"
           maxLength={LIMITS.name}
           value={name}
           onChange={(e) => onName(e.target.value)}
@@ -61,7 +65,10 @@ export function JoinCard({
         {/* Ayuda / error: min-height fijo (como el diseño) para que el botón no salte. */}
         <p
           aria-live="polite"
-          className={cx("min-h-[38px] text-13 leading-[1.45]", error ? "font-semibold text-danger" : "text-ink-2")}
+          className={cx(
+            "min-h-[38px] text-13 leading-[1.45]",
+            error ? "font-semibold text-danger" : "text-ink-2",
+          )}
         >
           {error ?? hint}
         </p>
@@ -69,7 +76,8 @@ export function JoinCard({
           {busy ? "Anotando…" : submitLabel}
         </Button>
         <p className="text-12 leading-[1.45] text-ink-4">
-          ¿Ya te anotaste desde otro navegador? Desde acá no te vemos: pedile al organizador que te saque.
+          ¿Ya te anotaste desde otro navegador? Desde acá no te vemos: pedile al
+          organizador que te saque.
         </p>
       </form>
     </Card>
