@@ -139,13 +139,13 @@ select throws_ok(
 reset role;
 
 select pg_temp.login('00000000-0000-0000-0000-00000000000b');
-update public.match_players set team = 'B', slot = 3
- where user_id = '00000000-0000-0000-0000-00000000000b';
+select public.change_player_team((select v from ctx where k = 'id'),
+  (select id from public.match_players where user_id = auth.uid()), 'B');
 reset role;
 select is(
   (select team || slot from public.match_players
    where user_id = '00000000-0000-0000-0000-00000000000b'),
-  'B3', 'Bruno sí puede cambiarse de lugar');
+  'B0', 'Bruno cambia de equipo y recibe el primer lugar libre');
 
 -- ---------------------------------------------------------------------------
 -- Tablas secretas
@@ -175,10 +175,10 @@ select throws_ok(
   format($$select public.reset_team_layout(%L, 'A')$$, (select v from ctx where k = 'id')),
   '42501', 'not_admin', 'alguien que no es admin no puede restablecer posiciones');
 select throws_ok(
-  format($$select public.move_player_slot(%L,
-    (select id from public.match_players where name = 'Pedro'), 'B', 1)$$,
+  format($$select public.change_player_team(%L,
+    (select id from public.match_players where name = 'Pedro'), 'B')$$,
     (select v from ctx where k = 'id')),
-  '42501', 'not_admin', 'Caro no puede mover jugadores como administradora');
+  '42501', 'not_your_token', 'Caro no puede cambiar el equipo de Pedro');
 reset role;
 
 select * from finish();

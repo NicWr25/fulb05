@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { Pitch, PitchSpot } from "@/components/pitch/Pitch";
 import { PlayerToken } from "@/components/pitch/PlayerToken";
 import { playerDisplayName, slotsByTeam, type Match, type Player } from "@/lib/domain/match";
@@ -55,6 +55,7 @@ export function MatchPitch({
   canDrag = () => false,
   canSelect = () => false,
   onSelect,
+  onClearSelection,
   onMove,
   disabled,
 }: {
@@ -64,6 +65,7 @@ export function MatchPitch({
   canDrag?: (ref: SlotRef, player: Player | null) => boolean;
   canSelect?: (ref: SlotRef, player: Player | null) => boolean;
   onSelect?: (ref: SlotRef) => void;
+  onClearSelection?: () => void;
   /** Guarda la nueva posición; devuelve false si falló (la ficha vuelve a su lugar). */
   onMove?: (ref: SlotRef, point: Point) => Promise<boolean>;
   disabled?: boolean;
@@ -73,6 +75,23 @@ export function MatchPitch({
   // Posición ya soltada pero todavía no confirmada por la base: evita que la
   // ficha "vuelva" a su lugar viejo mientras viaja el pedido.
   const [pending, setPending] = useState<{ ref: SlotRef; point: Point } | null>(null);
+
+  useEffect(() => {
+    if (!selected || !onClearSelection) return;
+    const dismiss = (event: MouseEvent) => {
+      if (event.target instanceof Element && event.target.closest("[data-pitch-selectable], [data-selection-context]")) return;
+      onClearSelection();
+    };
+    const escape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") onClearSelection();
+    };
+    document.addEventListener("click", dismiss);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("click", dismiss);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [selected, onClearSelection]);
 
   // Cuando llega un layout nuevo (el nuestro ya guardado, o un cambio de otro
   // por Realtime), manda ese y se descarta el pendiente.
@@ -171,6 +190,7 @@ export function MatchPitch({
               <PlayerToken
                 team={team}
                 playerName={displayName}
+                tagAboveMobile={pointOf(ref).x <= 10}
                 text={player ? initials(player.alias || player.name) : String(slot + 1)}
                 mine={mine}
                 selected={isSelected}
@@ -179,6 +199,7 @@ export function MatchPitch({
                 static={!draggable && !selectable}
                 disabled={disabled}
                 aria-label={label}
+                data-pitch-selectable={selectable ? "" : undefined}
                 {...(draggable
                   ? {
                       onPointerDown: (e: PointerEvent<HTMLButtonElement>) => onPointerDown(ref, e),

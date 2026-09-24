@@ -20,5 +20,7 @@ describe("barra de inscripción", () => {
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>[^<]*<[^>]*>.*Blanco<\/button>/);
     expect(html).toMatch(/<button[^>]*aria-pressed="false"[^>]*>[^<]*<[^>]*>.*Negro<\/button>/);
     expect(html).not.toMatch(/<button[^>]*aria-pressed="false"[^>]*disabled/);
+    expect(html.match(/<button[^>]*aria-pressed="true"[^>]*>/)?.[0]).toContain("bg-surface");
+    expect(html.match(/<button[^>]*aria-pressed="false"[^>]*>/)?.[0]).toContain("bg-cream");
   });
 });

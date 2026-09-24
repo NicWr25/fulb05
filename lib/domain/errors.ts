@@ -23,6 +23,7 @@ const BY_MESSAGE: Record<string, string> = {
   invalid_starts_at: "La fecha tiene que ser futura y dentro del próximo año.",
   invalid_timezone: "No pudimos reconocer tu zona horaria.",
   slot_out_of_range: "Ese lugar no existe en este formato.",
+  invalid_team: "Ese equipo no existe.",
   match_not_found: "Este partido no existe o ya se borró.",
   not_admin: "Solo el organizador puede hacer eso.",
   not_authenticated: "Se perdió tu sesión. Recargá la página.",

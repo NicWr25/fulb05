@@ -60,9 +60,10 @@ Flujo de una visita a `/p/[id]`:
    (que no ejecuta JavaScript).
 2. **Cliente**: crea o recupera la sesión anónima y llama a `open_match(id)`, que lo
    registra como "visitante" de ese partido. Desde ahí, RLS le deja leer las tablas.
-3. **Acciones**: anotarse, cambiarse o bajarse son `INSERT`/`UPDATE`/`DELETE` directos
-   sobre `match_players`; lo permitido lo deciden **RLS y triggers**, no el cliente.
-   Crear o editar partidos, mover fichas y editar alias son **RPC** (`security definer`).
+3. **Acciones**: anotarse o bajarse son `INSERT`/`DELETE` directos sobre
+   `match_players`; lo permitido lo deciden **RLS y triggers**, no el cliente.
+   Crear o editar partidos, cambiar de equipo, mover fichas y editar alias son
+   **RPC** (`security definer`).
 4. **Tiempo real**: el cliente se suscribe a cambios; ante cualquier evento relee el
    partido (con debounce). Ver [Decisiones](#decisiones-técnicas).
 
@@ -186,7 +187,8 @@ de un equipo se distinguen en la cancha con el número del lugar.
   `private.is_match_admin()` compara `auth.uid()` con `matches.created_by`; el
   cliente solo muestra el panel, y Postgres valida cada escritura.
 - Antes de ofrecer el enlace de invitación, el creador elige Blanco o Negro y se anota.
-  El trigger impide que se baje del partido; puede cambiarse de lugar o de equipo.
+  El trigger impide que se baje del partido. Después puede cambiar de equipo con
+  el selector; la base asigna el primer lugar libre. La ficha se acomoda arrastrándola.
 - Los enlaces secretos de organizador anteriores quedaron deshabilitados. Si se pierde
   la sesión del navegador creador, no hay mecanismo de recuperación.
 

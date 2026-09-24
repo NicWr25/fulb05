@@ -98,16 +98,15 @@ select lives_ok(
 select is(pg_temp.point('A', 1), '{"x": 30, "y": 40}'::jsonb,
   'mover la ficha propia no pisó el movimiento de Bruno (jsonb_set cambia un solo punto)');
 select lives_ok(
-  format($$select public.move_player_slot(%L,
-    (select id from public.match_players where name = 'Bruno'), 'B', 2)$$, pg_temp.id()),
-  'el admin mueve a Bruno a un lugar libre del otro equipo');
+  format($$select public.change_player_team(%L,
+    (select id from public.match_players where name = 'Bruno'), 'B')$$, pg_temp.id()),
+  'el admin cambia a Bruno de equipo');
 select is(
   (select team || slot from public.match_players where name = 'Bruno'),
-  'B2', 'el cambio de equipo y lugar queda guardado');
+  'B0', 'el primer lugar libre del equipo queda asignado');
 select throws_ok(
-  format($$select public.move_player_slot(%L,
-    (select id from public.match_players where name = 'Bruno'), 'B', 3)$$, pg_temp.id()),
-  'P0001', 'slot_taken', 'el admin no puede ocupar el lugar de Ana');
+  $$update public.match_players set slot = 3 where name = 'Ana'$$,
+  '42501', null, 'el admin no puede cambiar un lugar por UPDATE directo');
 
 
 -- ---------------------------------------------------------------------------
@@ -117,7 +116,7 @@ reset role;
 update public.matches set starts_at = now() - interval '1 minute' where id = pg_temp.id();
 select pg_temp.login('00000000-0000-0000-0000-00000000000b');
 select throws_ok(
-  format($$select public.move_token(%L, 'B', 2, 70, 20)$$, pg_temp.id()),
+  format($$select public.move_token(%L, 'B', 0, 70, 20)$$, pg_temp.id()),
   'P0001', 'match_closed', 'con el partido empezado, el jugador ya no mueve su ficha');
 select pg_temp.login('00000000-0000-0000-0000-00000000000a');
 select throws_ok(

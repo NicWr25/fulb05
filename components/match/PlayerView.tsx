@@ -8,6 +8,7 @@ import { MatchHeader } from "./MatchHeader";
 import { MatchLayout } from "./MatchLayout";
 import { MatchPitch, type SlotRef } from "./MatchPitch";
 import { QuickAddBar } from "./QuickAddBar";
+import { TeamChoice } from "./TeamChoice";
 import { AliasEditor } from "./AliasEditor";
 import { MyEntryCard } from "./MyEntryCard";
 import { ShareIconLink, ShareWideLink } from "./ShareButtons";
@@ -68,7 +69,7 @@ export function PlayerView({
 
   // Si el lugar elegido lo ocupó otra persona (se ve al recargar), la
   // selección deja de valer. Se deriva en el render, sin efectos.
-  const selected = picked && !slots[picked.team][picked.slot] && picked.slot < match.format ? picked : null;
+  const selected = !me && picked && !slots[picked.team][picked.slot] && picked.slot < match.format ? picked : null;
   const teamFull = (t: Team) => slots[t].every(Boolean);
   const targetTeam = selected?.team ?? team;
   const duplicateName = hasNameInTeam(name, targetTeam, match.players);
@@ -137,11 +138,11 @@ export function PlayerView({
     if (ok) setEditAlias(null);
   }
 
-  async function move() {
-    if (!me || !selected) return;
-    await run(() =>
-      supabaseBrowser().from("match_players").update({ team: selected.team, slot: selected.slot }).eq("id", me.id),
-    );
+  async function changeTeam(next: Team) {
+    if (!me || next === me.team) return;
+    await run(() => supabaseBrowser().rpc("change_player_team", {
+      p_match_id: match.id, p_player_id: me.id, p_team: next,
+    }));
   }
 
   /** Mover mi propia ficha (la RPC valida que sea mía y que quede en mi mitad). */
@@ -241,24 +242,25 @@ export function PlayerView({
           {!closed && me && <MyEntryCard
             name={me.name}
             line={`Jugás en ${TEAM_IN[me.team]}.`}
-            moveHint={selected ? `Elegiste el lugar ${selected.slot + 1} en ${TEAM_IN[selected.team]}.` : "Tocá un lugar libre para cambiarte; arrastrá tu ficha para acomodarte."}
-            error={error} canMove={Boolean(selected)} busy={busy}
-            onMove={move} onLeave={leave}
+            hint="Arrastrá tu ficha para acomodarte."
+            error={error} busy={busy} editingAlias={editAlias !== null}
+            onEditAlias={() => setEditAlias(me.alias ?? "")}
+            onLeave={leave}
           />}
-          {!closed && me && <div className="flex flex-col gap-2">
-            {editAlias === null ? <button type="button" onClick={() => setEditAlias(me.alias ?? "")}
-              className="min-h-11 self-start rounded-btn border border-line-strong bg-surface px-3 text-13 font-semibold">Editar alias en la cancha</button>
-              : <AliasEditor value={editAlias} onChange={setEditAlias} onSave={saveAlias}
-                  onCancel={() => setEditAlias(null)} busy={busy} error={playerAliasError(editAlias) ?? error} />}
-          </div>}
+          {!closed && me && editAlias !== null && <AliasEditor value={editAlias} onChange={setEditAlias} onSave={saveAlias}
+            onCancel={() => setEditAlias(null)} busy={busy} error={playerAliasError(editAlias) ?? error} />}
+          {!closed && me && <TeamChoice team={me.team} label="Tu equipo"
+            onTeam={(next) => { void changeTeam(next); }}
+            unavailable={teamFull} busy={!ready || busy} />}
           <MatchPitch
             match={match}
             meId={me?.id}
             selected={selected}
             // Solo tu propia ficha se arrastra; solo los lugares libres se eligen.
             canDrag={(_, player) => !closed && Boolean(me && player?.id === me.id)}
-            canSelect={(_, player) => !closed && !player}
+            canSelect={(_, player) => !closed && !me && !player}
             onSelect={pick}
+            onClearSelection={() => setPicked(null)}
             onMove={moveToken}
             disabled={busy}
           />
@@ -266,7 +268,7 @@ export function PlayerView({
             {closed
               ? "El partido ya empezó: la cancha queda como estaba."
               : me?.slot != null
-                ? "Arrastrá tu ficha dentro de tu mitad o tocá un lugar libre para cambiarte."
+                ? "Arrastrá tu ficha dentro de tu mitad para acomodarte. Usá los botones para cambiar de equipo."
                 : "Tocá un lugar libre para elegirlo. Cuando estés anotado, vas a poder arrastrar tu ficha."}
           </p>
         </>

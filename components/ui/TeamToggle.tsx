@@ -26,8 +26,8 @@ export function TeamToggle({
             disabled={disabled}
             onClick={() => onChange(team)}
             className={cx(
-              "flex h-11 items-center justify-center gap-2 rounded-field bg-surface text-15 font-semibold text-ink",
-              active ? "border-2 border-ink" : "border border-line-strong",
+              "flex h-11 items-center justify-center gap-2 rounded-field text-15 font-semibold text-ink",
+              active ? "border-2 border-ink bg-surface shadow-seg" : "border border-line-strong bg-cream",
             )}
           >
             <TeamSwatch team={team} />

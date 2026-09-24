@@ -11,31 +11,31 @@ export type Database = {
     Tables: {
       match_players: {
         Row: {
+          alias: string | null
           created_at: string
           id: string
           match_id: string
           name: string
-          alias: string | null
           slot: number
           team: string
           user_id: string | null
         }
         Insert: {
+          alias?: string | null
           created_at?: string
           id?: string
           match_id: string
           name: string
-          alias?: string | null
           slot: number
           team: string
           user_id?: string | null
         }
         Update: {
+          alias?: string | null
           created_at?: string
           id?: string
           match_id?: string
           name?: string
-          alias?: string | null
           slot?: number
           team?: string
           user_id?: string | null
@@ -123,6 +123,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      change_player_team: {
+        Args: { p_match_id: string; p_player_id: string; p_team: string }
+        Returns: undefined
+      }
       create_match: {
         Args: {
           p_date: string
@@ -137,23 +141,6 @@ export type Database = {
         Returns: Json
       }
       get_match_preview: { Args: { p_match_id: string }; Returns: Json }
-      move_player_slot: {
-        Args: {
-          p_match_id: string
-          p_player_id: string
-          p_slot: number
-          p_team: string
-        }
-        Returns: undefined
-      }
-      set_player_alias: {
-        Args: {
-          p_match_id: string
-          p_player_id: string
-          p_alias: string
-        }
-        Returns: undefined
-      }
       move_token: {
         Args: {
           p_match_id: string
@@ -167,6 +154,10 @@ export type Database = {
       open_match: { Args: { p_match_id: string }; Returns: boolean }
       reset_team_layout: {
         Args: { p_match_id: string; p_team: string }
+        Returns: undefined
+      }
+      set_player_alias: {
+        Args: { p_alias: string; p_match_id: string; p_player_id: string }
         Returns: undefined
       }
       update_match: {

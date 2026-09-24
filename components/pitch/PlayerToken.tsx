@@ -8,6 +8,7 @@ export type PlayerTokenProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "ch
   text: string;
   /** Nombre para la etiqueta de abajo; si no hay, es un lugar libre. */
   playerName?: string | null;
+  tagAboveMobile?: boolean;
   "aria-label": string;
   mine?: boolean;
   selected?: boolean;
@@ -28,6 +29,7 @@ export function PlayerToken({
   team,
   text,
   playerName,
+  tagAboveMobile,
   mine,
   selected,
   dragging,
@@ -44,7 +46,7 @@ export function PlayerToken({
     filled
       ? cx(TEAM_TOKEN_CLASS[team], "text-15 lg:text-16", mine ? "border-[3px] border-gold" : "border-2 border-white")
       : "border-2 border-dashed border-white/85 bg-black/18 text-11 text-white lg:text-12",
-    dragging ? "shadow-token-drag" : selected ? "shadow-token-sel" : "shadow-token",
+    dragging ? "shadow-token-drag" : selected && !mine ? "shadow-token-sel" : "shadow-token",
     draggable && (dragging ? "cursor-grabbing touch-none" : "cursor-grab touch-none"),
   );
 
@@ -52,8 +54,9 @@ export function PlayerToken({
     <span
       aria-hidden="true"
       className={cx(
-        "pointer-events-none absolute top-full left-1/2 mt-[3px] max-w-22 -translate-x-1/2 truncate rounded-[5px] px-1.5 py-px text-12 font-semibold whitespace-nowrap",
-        "lg:mt-1.5 lg:max-w-26 lg:rounded-tag lg:px-2 lg:py-0.5 lg:text-13",
+        "pointer-events-none absolute left-1/2 max-w-22 -translate-x-1/2 truncate rounded-[5px] px-1.5 py-px text-12 font-semibold whitespace-nowrap",
+        tagAboveMobile ? "bottom-full mb-[3px] lg:bottom-auto lg:mb-0" : "top-full mt-[3px]",
+        "lg:top-full lg:mt-1.5 lg:max-w-26 lg:rounded-tag lg:px-2 lg:py-0.5 lg:text-13",
         mine ? "bg-gold text-ink" : "bg-tag text-white",
       )}
     >

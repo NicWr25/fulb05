@@ -77,7 +77,7 @@ export function QuickAddBar({ name, onName, nameError, alias, onAlias, aliasErro
                 onClick={() => onTeam(value)} disabled={busy || teamDisabled?.(value)}
                 className={cx(
                   "flex min-h-11 items-center gap-1.5 rounded-btn border px-2.5 text-13 font-semibold",
-                  team === value ? "border-ink bg-cream text-ink" : "border-line-strong bg-surface text-ink-2",
+                  team === value ? "border-ink bg-surface text-ink" : "border-line-strong bg-cream text-ink-2",
                 )}>
                 <TeamSwatch team={value} />{TEAM_LABEL[value]}
               </button>

@@ -7,6 +7,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { StatBox } from "@/components/ui/StatBox";
 import { EditIcon } from "@/components/ui/icons";
 import { QuickAddBar } from "./QuickAddBar";
+import { TeamChoice } from "./TeamChoice";
 import { AliasEditor } from "./AliasEditor";
 import { useEditMatchDialog } from "./EditMatchDialog";
 import { MatchHeader } from "./MatchHeader";
@@ -46,13 +47,13 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [moving, setMoving] = useState<Player | null>(null);
 
   const sb = supabaseBrowser();
   const slots = slotsByTeam(match);
   const ready = status === "ready";
-  const current = selected && selected.slot < match.format ? selected : null;
+  const current = selected && selected.slot < match.format && slots[selected.team][selected.slot]?.id !== me?.id ? selected : null;
   const occupant = current ? slots[current.team][current.slot] : null;
+  const managedPlayer = occupant ?? me;
   const teamFull = (t: Team) => slots[t].every(Boolean);
   const targetTeam = current ? current.team : team;
   const duplicateName = hasNameInTeam(name, targetTeam, match.players);
@@ -97,11 +98,6 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
   function select(ref: SlotRef) {
     setError(null);
     const same = current?.team === ref.team && current.slot === ref.slot;
-    if (moving) {
-      if (slots[ref.team][ref.slot]) return;
-      void movePlayer(moving, ref);
-      return;
-    }
     setSelected(same ? null : ref);
     setTeam(ref.team);
   }
@@ -145,11 +141,12 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
     if (ok) setSelected(null);
   }
 
-  async function movePlayer(p: Player, ref: SlotRef) {
-    const ok = await run(() => sb.rpc("move_player_slot", {
-      p_match_id: match.id, p_player_id: p.id, p_team: ref.team, p_slot: ref.slot,
+  async function changePlayerTeam(player: Player, next: Team) {
+    if (next === player.team) return;
+    const ok = await run(() => sb.rpc("change_player_team", {
+      p_match_id: match.id, p_player_id: player.id, p_team: next,
     }));
-    if (ok) { setMoving(null); setSelected(null); }
+    if (ok) setSelected(null);
   }
 
   async function changeFormat(f: Format) {
@@ -195,7 +192,7 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
 
   let hint = "Sin lugar elegido: primer lugar libre del equipo.";
   if (current && !occupant) hint = `Va al lugar ${current.slot + 1} en ${TEAM_IN[current.team]}.`;
-  else if (current && occupant) hint = `Ahí ya juega ${occupant.name}. Tocá su ficha para moverlo o sacarlo.`;
+  else if (current && occupant) hint = `Ahí ya juega ${occupant.name}. Tocá su ficha para administrar su equipo.`;
   if ((!current || occupant) && teamFull(targetTeam)) hint = `${TEAM_IN[targetTeam][0].toUpperCase() + TEAM_IN[targetTeam].slice(1)} está completo.`;
 
   const card = closed ? (
@@ -284,35 +281,41 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
         pitch={
           <>
             {quickAdd}
-            {current && occupant && !closed && <div className="flex flex-wrap items-center gap-2 rounded-panel border border-line bg-surface p-2.5 text-13">
+            {current && occupant && !closed && <div data-selection-context className="flex flex-wrap items-center gap-2 rounded-panel border border-line bg-surface p-2.5 text-13">
               <span className="min-w-0 flex-1 font-semibold">{occupant.name}</span>
-              <button type="button" onClick={() => { setMoving(occupant); setSelected(null); }} className="min-h-11 rounded-btn border border-line-strong px-3 font-semibold">Cambiar lugar</button>
               {(occupant.user_id == null || occupant.id === me?.id) &&
                 <button type="button" onClick={() => { setEditedAlias(occupant.alias ?? ""); setEditingAlias(occupant.id); }}
                   className="min-h-11 rounded-btn border border-line-strong px-3 font-semibold">Editar alias</button>}
               {occupant.id !== me?.id && <button type="button" onClick={() => remove(occupant)} disabled={busy} className="min-h-11 rounded-btn border border-line-strong px-3 font-semibold text-danger">Sacar</button>}
             </div>}
-            {current && occupant && editingAlias === occupant.id &&
+            {current && occupant && editingAlias === occupant.id && <div data-selection-context>
               <AliasEditor value={editedAlias} onChange={setEditedAlias} onSave={() => saveAlias(occupant)}
-                onCancel={() => setEditingAlias(null)} busy={busy} error={playerAliasError(editedAlias) ?? error} />}
-            {moving && <div className="flex items-center gap-2 rounded-panel border border-line bg-surface p-2.5 text-13">
-              <p className="flex-1">Tocá un lugar libre para mover a {moving.name}.</p>
-              <button type="button" onClick={() => setMoving(null)} className="min-h-11 px-2 font-semibold">Cancelar</button>
+                onCancel={() => setEditingAlias(null)} busy={busy} error={playerAliasError(editedAlias) ?? error} />
             </div>}
-            <details className="text-13 text-ink-2"><summary className="min-h-11 cursor-pointer font-semibold">Restablecer posiciones</summary>
-              <div className="flex gap-2">{(["A", "B"] as const).map((t) => <button key={t} type="button" onClick={() => resetTeam(t)} disabled={!ready || busy} className="min-h-11 rounded-btn border border-line-strong px-3">{TEAM_LABEL[t]}</button>)}</div>
-            </details>
+            {!closed && me && !occupant && (editingAlias === me.id ?
+              <AliasEditor value={editedAlias} onChange={setEditedAlias} onSave={() => saveAlias(me)}
+                onCancel={() => setEditingAlias(null)} busy={busy} error={playerAliasError(editedAlias) ?? error} /> :
+              <button type="button" onClick={() => { setEditedAlias(me.alias ?? ""); setEditingAlias(me.id); }}
+                className="min-h-11 self-start rounded-btn border border-line-strong bg-surface px-3 text-13 font-semibold">Editar mi alias</button>)}
+            {!closed && managedPlayer && <TeamChoice team={managedPlayer.team}
+              label={`Equipo de ${managedPlayer.name}`}
+              onTeam={(next) => { void changePlayerTeam(managedPlayer, next); }}
+              unavailable={teamFull} busy={!ready || busy} />}
             <MatchPitch
               match={match}
               meId={me?.id}
               selected={current}
               canDrag={(_, player) => !closed && Boolean(player)}
-              canSelect={() => !closed}
+              canSelect={(_, player) => !closed && player?.id !== me?.id}
               onSelect={select}
+              onClearSelection={() => setSelected(null)}
               onMove={moveToken}
             />
+            <details className="text-13 text-ink-2"><summary className="min-h-11 cursor-pointer font-semibold">Restablecer posiciones</summary>
+              <div className="flex gap-2">{(["A", "B"] as const).map((t) => <button key={t} type="button" onClick={() => resetTeam(t)} disabled={!ready || busy} className="min-h-11 rounded-btn border border-line-strong px-3">{TEAM_LABEL[t]}</button>)}</div>
+            </details>
             <p className="text-13 leading-[1.45] text-ink-2 lg:flex lg:gap-5">
-              <span>Arrastrá cualquier ficha dentro de su mitad. Tocá una ficha para moverla o sacarla.</span>
+              <span>Arrastrá cualquier ficha dentro de su mitad. Tocá una ficha ajena para administrarla.</span>
             </p>
             {error && closed && (
               <p role="alert" className="text-14 font-semibold text-danger">
