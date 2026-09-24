@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
+import { siteUrl } from "@/lib/site";
 
 // next/font descarga las fuentes en el build y las sirve desde nuestro dominio:
 // el navegador no le pide nada a Google (privacidad) y reserva el espacio del
@@ -20,8 +21,16 @@ const bricolage = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
+  // Base para convertir en absolutas las URLs de Open Graph (WhatsApp exige
+  // URLs absolutas para la imagen de la vista previa).
+  metadataBase: new URL(siteUrl()),
   title: "Armá el partido",
   description: "Armá equipos de fútbol 5 o 7 y pasá el enlace por WhatsApp.",
+  openGraph: {
+    siteName: "Armá el partido",
+    locale: "es_UY",
+    type: "website",
+  },
 };
 
 export const viewport: Viewport = {
