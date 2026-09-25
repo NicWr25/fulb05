@@ -4,13 +4,20 @@ import { useEffect, useId, useRef, useState } from "react";
 import { MapsLink } from "@/components/ui/MapsLink";
 import { TextField } from "@/components/ui/TextField";
 import { PinIcon } from "@/components/ui/icons";
-import { loadPlaces, mapsEnabled, onMapsAuthFailure, type PlacePrediction } from "@/lib/maps/loader";
+import {
+  loadPlaces,
+  mapsEnabled,
+  onMapsAuthFailure,
+  showMap,
+  type LatLngLiteral,
+  type PlacePrediction,
+} from "@/lib/maps/loader";
 import { mapsUrlFromPlace, venueFromMapsUrl, venueName } from "@/lib/domain/validation";
 
 // Centro de Montevideo: las sugerencias priorizan (no restringen) esta zona.
 const MONTEVIDEO = { center: { lat: -34.8941, lng: -56.1650 }, radius: 25_000 };
 
-type Picked = { name: string; address: string };
+type Picked = { name: string; address: string; location?: LatLngLiteral | null };
 
 type Props = {
   /** Enlace actual ("" si todavía no hay). */
@@ -76,7 +83,7 @@ export function MapsField({ value, venue, onChange, error }: Props) {
           onUnavailable={() => setUnavailable(true)}
           onSelect={(place) => {
             const name = venueName(place.name) ?? place.address;
-            setPicked({ name, address: place.address });
+            setPicked({ name, address: place.address, location: place.location });
             onChange(mapsUrlFromPlace({ placeId: place.placeId, name }), venueName(place.name));
           }}
         />
@@ -130,7 +137,35 @@ function Selected({ picked, href, onChange }: { picked: Picked | null; href: str
           Cambiar
         </button>
       </div>
+      {picked?.location && <PlaceMap position={picked.location} title={picked.name} />}
     </div>
+  );
+}
+
+/**
+ * Mapa para que el organizador confirme que eligió la cancha correcta. Solo
+ * aparece al elegir un lugar (no en la página del partido): cada mapa cuenta
+ * como una carga del SKU Dynamic Maps (10.000 gratis por mes).
+ */
+function PlaceMap({ position, title }: { position: LatLngLiteral; title: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    showMap(ref.current, position, title).catch(() => setFailed(true));
+  }, [position, title]);
+
+  if (failed) return null;
+  return (
+    <div
+      ref={ref}
+      // region y no img: adentro hay botones de zoom que tienen que seguir
+      // siendo accesibles con teclado y lector de pantalla.
+      role="region"
+      aria-label={`Mapa con la ubicación de ${title}`}
+      className="h-[200px] overflow-hidden rounded-field border border-line-strong bg-sand lg:h-[240px]"
+    />
   );
 }
 
@@ -140,8 +175,8 @@ function Selected({ picked, href, onChange }: { picked: Picked | null; href: str
  * personalizados.
  *
  * Costo: las teclas son gratis si la búsqueda termina en un pedido de
- * detalles ("sesión"). Ese pedido trae SOLO `formattedAddress`, un campo
- * Essentials (10.000 gratis por mes). El nombre sale de la sugerencia misma:
+ * detalles ("sesión"). Ese pedido trae SOLO `formattedAddress` y `location`,
+ * campos Essentials (10.000 gratis por mes). El nombre sale de la sugerencia misma:
  * pedir `displayName` sería un campo Pro, más del triple de caro.
  */
 function PlaceSearch({
@@ -150,7 +185,7 @@ function PlaceSearch({
   onUnavailable,
 }: {
   error?: string;
-  onSelect: (place: { placeId: string; name: string; address: string }) => void;
+  onSelect: (place: { placeId: string; name: string; address: string; location: LatLngLiteral | null }) => void;
   onUnavailable: () => void;
 }) {
   const labelId = useId();
@@ -181,7 +216,8 @@ function PlaceSearch({
           const prediction = (event as Event & { placePrediction: PlacePrediction }).placePrediction;
           const place = prediction.toPlace();
           try {
-            await place.fetchFields({ fields: ["formattedAddress"] });
+            // Los dos son campos Essentials: pedirlos juntos es UN solo cobro.
+            await place.fetchFields({ fields: ["formattedAddress", "location"] });
           } catch {
             // Sin dirección igual sirve: el enlace solo necesita el id.
           }
@@ -189,6 +225,7 @@ function PlaceSearch({
             placeId: prediction.placeId,
             name: prediction.mainText?.text ?? prediction.text.text,
             address: place.formattedAddress ?? "",
+            location: place.location ? { lat: place.location.lat(), lng: place.location.lng() } : null,
           });
         });
         hostRef.current.append(el);

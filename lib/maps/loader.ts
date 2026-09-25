@@ -20,9 +20,13 @@ export type PlacePrediction = {
   toPlace(): {
     id: string;
     formattedAddress?: string | null;
+    location?: LatLng | null;
     fetchFields(opts: { fields: string[] }): Promise<unknown>;
   };
 };
+
+type LatLng = { lat(): number; lng(): number };
+export type LatLngLiteral = { lat: number; lng: number };
 
 export type PlaceAutocompleteElement = HTMLElement & {
   includedRegionCodes: string[] | null;
@@ -36,7 +40,30 @@ type PlacesLibrary = {
   }) => PlaceAutocompleteElement;
 };
 
-type GoogleMaps = { maps: { importLibrary(name: "places"): Promise<PlacesLibrary> } };
+type MapsLibrary = {
+  Map: new (
+    el: HTMLElement,
+    opts: {
+      center: LatLngLiteral;
+      zoom: number;
+      mapId: string;
+      disableDefaultUI?: boolean;
+      zoomControl?: boolean;
+      gestureHandling?: "cooperative" | "greedy" | "none" | "auto";
+      clickableIcons?: boolean;
+    },
+  ) => unknown;
+};
+
+type MarkerLibrary = {
+  AdvancedMarkerElement: new (opts: { map: unknown; position: LatLngLiteral; title?: string }) => unknown;
+};
+
+type Libraries = { places: PlacesLibrary; maps: MapsLibrary; marker: MarkerLibrary };
+
+type GoogleMaps = {
+  maps: { importLibrary<K extends keyof Libraries>(name: K): Promise<Libraries[K]> };
+};
 
 declare global {
   interface Window {
@@ -53,7 +80,13 @@ const KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 /** false = no hay key en este entorno: ni siquiera se intenta cargar. */
 export const mapsEnabled = Boolean(KEY);
 
-let loading: Promise<PlacesLibrary> | null = null;
+/**
+ * Los marcadores modernos (AdvancedMarkerElement) exigen un "Map ID" creado
+ * en Google Cloud. DEMO_MAP_ID es el que Google ofrece para desarrollo.
+ */
+const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || "DEMO_MAP_ID";
+
+let loading: Promise<void> | null = null;
 let authFailed = false;
 const authListeners = new Set<() => void>();
 
@@ -68,6 +101,31 @@ export function onMapsAuthFailure(listener: () => void): () => void {
 }
 
 export function loadPlaces(): Promise<PlacesLibrary> {
+  return loadApi().then(() => window.google!.maps.importLibrary("places"));
+}
+
+/** Mapa de solo lectura con un marcador en `position` (ver PlaceMap). */
+export async function showMap(el: HTMLElement, position: LatLngLiteral, title: string): Promise<void> {
+  await loadApi();
+  const [{ Map }, { AdvancedMarkerElement }] = await Promise.all([
+    window.google!.maps.importLibrary("maps"),
+    window.google!.maps.importLibrary("marker"),
+  ]);
+  const map = new Map(el, {
+    center: position,
+    zoom: 16,
+    mapId: MAP_ID,
+    disableDefaultUI: true,
+    zoomControl: true,
+    // En el celular, un dedo scrollea la página y dos mueven el mapa: así el
+    // mapa no "atrapa" el scroll del formulario.
+    gestureHandling: "cooperative",
+    clickableIcons: false,
+  });
+  new AdvancedMarkerElement({ map, position, title });
+}
+
+function loadApi(): Promise<void> {
   if (!KEY) return Promise.reject(new Error("maps_disabled"));
   if (authFailed) return Promise.reject(new Error("maps_auth_failed"));
 
@@ -99,7 +157,7 @@ export function loadPlaces(): Promise<PlacesLibrary> {
       reject(new Error("maps_load_failed"));
     };
     document.head.append(script);
-  }).then(() => window.google!.maps.importLibrary("places"));
+  });
 
   return loading;
 }
