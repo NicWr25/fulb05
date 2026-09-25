@@ -18,10 +18,21 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 import type { MatchState } from "@/lib/hooks/useMatch";
 import { formatMatchDate, toLocalInputs } from "@/lib/domain/datetime";
 import { errorMessage } from "@/lib/domain/errors";
-import { hasNameInTeam, missingCount, missingLabel, slotsByTeam, type Player } from "@/lib/domain/match";
+import {
+  hasNameInTeam,
+  missingCount,
+  missingLabel,
+  slotsByTeam,
+  type Player,
+} from "@/lib/domain/match";
 import { type Point } from "@/lib/domain/positions";
 import { matchTitle } from "@/lib/domain/share";
-import { TEAM_IN, TEAM_LABEL, type Format, type Team } from "@/lib/domain/teams";
+import {
+  TEAM_IN,
+  TEAM_LABEL,
+  type Format,
+  type Team,
+} from "@/lib/domain/teams";
 import { playerAliasError, playerNameError } from "@/lib/domain/validation";
 
 type AnyError = Parameters<typeof errorMessage>[0];
@@ -36,7 +47,15 @@ type AnyError = Parameters<typeof errorMessage>[0];
  * Si alguien forzara este panel en su navegador sin ser admin, cada acción
  * fallaría con "Solo el organizador puede hacer eso".
  */
-export function OrganizerView({ state, closed, shareHref }: { state: MatchState; closed: boolean; shareHref: string }) {
+export function OrganizerView({
+  state,
+  closed,
+  shareHref,
+}: {
+  state: MatchState;
+  closed: boolean;
+  shareHref: string;
+}) {
   const { match, me, status, reload } = state;
   const [selected, setSelected] = useState<SlotRef | null>(null);
   const [name, setName] = useState("");
@@ -51,7 +70,12 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
   const sb = supabaseBrowser();
   const slots = slotsByTeam(match);
   const ready = status === "ready";
-  const current = selected && selected.slot < match.format && slots[selected.team][selected.slot]?.id !== me?.id ? selected : null;
+  const current =
+    selected &&
+    selected.slot < match.format &&
+    slots[selected.team][selected.slot]?.id !== me?.id
+      ? selected
+      : null;
   const occupant = current ? slots[current.team][current.slot] : null;
   const managedPlayer = occupant ?? me;
   const teamFull = (t: Team) => slots[t].every(Boolean);
@@ -75,7 +99,9 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
   }
 
   /** Corre una acción, muestra el error traducido si falla y relee el estado. */
-  async function run(action: () => PromiseLike<{ error: AnyError }>): Promise<boolean> {
+  async function run(
+    action: () => PromiseLike<{ error: AnyError }>,
+  ): Promise<boolean> {
     setBusy(true);
     setError(null);
     try {
@@ -109,15 +135,23 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
 
   /** Destino de un alta: el lugar elegido si está libre; si no, primer libre. */
   function target() {
-    return { team: targetTeam, slot: current && !occupant ? current.slot : null as unknown as number };
+    return {
+      team: targetTeam,
+      slot: current && !occupant ? current.slot : (null as unknown as number),
+    };
   }
 
   async function addPlayer() {
     setTried(true);
     if (playerNameError(name) || playerAliasError(alias)) return;
     const ok = await run(() =>
-      sb.from("match_players").insert({ match_id: match.id, user_id: null, name: name.trim(),
-        alias: alias.trim() || null, ...target() }),
+      sb.from("match_players").insert({
+        match_id: match.id,
+        user_id: null,
+        name: name.trim(),
+        alias: alias.trim() || null,
+        ...target(),
+      }),
     );
     if (ok) {
       setName("");
@@ -129,23 +163,34 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
 
   async function saveAlias(player: Player) {
     if (playerAliasError(editedAlias)) return;
-    const ok = await run(() => sb.rpc("set_player_alias", {
-      p_match_id: match.id, p_player_id: player.id, p_alias: editedAlias.trim(),
-    }));
+    const ok = await run(() =>
+      sb.rpc("set_player_alias", {
+        p_match_id: match.id,
+        p_player_id: player.id,
+        p_alias: editedAlias.trim(),
+      }),
+    );
     if (ok) setEditingAlias(null);
   }
 
   async function remove(p: Player) {
-    if (p.id === me?.id || !window.confirm(`¿Sacar a ${p.name} del partido?`)) return;
-    const ok = await run(() => sb.from("match_players").delete().eq("id", p.id));
+    if (p.id === me?.id || !window.confirm(`¿Sacar a ${p.name} del partido?`))
+      return;
+    const ok = await run(() =>
+      sb.from("match_players").delete().eq("id", p.id),
+    );
     if (ok) setSelected(null);
   }
 
   async function changePlayerTeam(player: Player, next: Team) {
     if (next === player.team) return;
-    const ok = await run(() => sb.rpc("change_player_team", {
-      p_match_id: match.id, p_player_id: player.id, p_team: next,
-    }));
+    const ok = await run(() =>
+      sb.rpc("change_player_team", {
+        p_match_id: match.id,
+        p_player_id: player.id,
+        p_team: next,
+      }),
+    );
     if (ok) setSelected(null);
   }
 
@@ -170,7 +215,9 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
   }
 
   async function resetTeam(t: Team) {
-    await run(() => sb.rpc("reset_team_layout", { p_match_id: match.id, p_team: t }));
+    await run(() =>
+      sb.rpc("reset_team_layout", { p_match_id: match.id, p_team: t }),
+    );
   }
 
   const edit = useEditMatchDialog(match, async (f) => {
@@ -191,38 +238,56 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
   const missing = missingCount(match);
 
   let hint = "Sin lugar elegido: primer lugar libre del equipo.";
-  if (current && !occupant) hint = `Va al lugar ${current.slot + 1} en ${TEAM_IN[current.team]}.`;
-  else if (current && occupant) hint = `Ahí ya juega ${occupant.name}. Tocá su ficha para administrar su equipo.`;
-  if ((!current || occupant) && teamFull(targetTeam)) hint = `${TEAM_IN[targetTeam][0].toUpperCase() + TEAM_IN[targetTeam].slice(1)} está completo.`;
+  if (current && !occupant)
+    hint = `Va al lugar ${current.slot + 1} en ${TEAM_IN[current.team]}.`;
+  else if (current && occupant)
+    hint = `Ahí ya juega ${occupant.name}. Tocá su ficha para administrar su equipo.`;
+  if ((!current || occupant) && teamFull(targetTeam))
+    hint = `${TEAM_IN[targetTeam][0].toUpperCase() + TEAM_IN[targetTeam].slice(1)} está completo.`;
 
   const card = closed ? (
     <Card>
       <CardTitle>El partido ya empezó</CardTitle>
       <p className="text-14 leading-[1.45] text-ink-2">
-        Las inscripciones están cerradas. Si se pasó para otro día, reprogramalo y se vuelven a abrir.
+        Las inscripciones están cerradas. Si se pasó para otro día, reprogramalo
+        y se vuelven a abrir.
       </p>
-      <Button size="md" onClick={edit.open}>Reprogramar</Button>
+      <Button size="md" onClick={edit.open}>
+        Reprogramar
+      </Button>
     </Card>
   ) : null;
 
   const quickAdd = !closed && (
     <QuickAddBar
       name={name}
-      onName={(value) => { setName(value); setError(null); }}
+      onName={(value) => {
+        setName(value);
+        setError(null);
+      }}
       nameError={tried ? playerNameError(name) : null}
       alias={alias}
-      onAlias={(value) => { setAlias(value); setError(null); }}
+      onAlias={(value) => {
+        setAlias(value);
+        setError(null);
+      }}
       aliasError={tried ? playerAliasError(alias) : null}
       showAlias={duplicateName || Boolean(alias)}
       team={targetTeam}
       onTeam={chooseTeam}
       teamDisabled={(value) => !ready || teamFull(value)}
-      hint={duplicateName ? "Ya hay alguien con ese nombre en el equipo. Podés usar un alias; si no, se verá el número del lugar." : hint}
+      hint={
+        duplicateName
+          ? "Ya hay alguien con ese nombre en el equipo. Podés usar un alias; si no, se verá el número del lugar."
+          : hint
+      }
       error={error}
       placeholder="Nombre del jugador"
       submitLabel={!ready ? "Conectando…" : "+ Agregar"}
       busy={busy}
-      disabled={!ready || Boolean((!current || occupant) && teamFull(targetTeam))}
+      disabled={
+        !ready || Boolean((!current || occupant) && teamFull(targetTeam))
+      }
       onSubmit={addPlayer}
     />
   );
@@ -235,7 +300,10 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
             eyebrow={closed ? "Partido cerrado" : "Panel del organizador"}
             title={title}
             onRenameTitle={async (newTitle) => {
-              const { error: err } = await sb.rpc("update_match", { ...details(), p_title: newTitle });
+              const { error: err } = await sb.rpc("update_match", {
+                ...details(),
+                p_title: newTitle,
+              });
               if (err) throw err;
               await reload();
             }}
@@ -273,7 +341,9 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
             />
             <StatBox
               value={closed ? "—" : missing}
-              title={closed ? "Las inscripciones cerraron" : missingLabel(missing)}
+              title={
+                closed ? "Las inscripciones cerraron" : missingLabel(missing)
+              }
               subtitle={`${match.format} vs ${match.format} · ${match.format * 2} jugadores en cancha`}
             />
           </div>
@@ -281,26 +351,61 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
         pitch={
           <>
             {quickAdd}
-            {current && occupant && !closed && <div data-selection-context className="flex flex-wrap items-center gap-2 rounded-panel border border-line bg-surface p-2.5 text-13">
-              <span className="min-w-0 flex-1 font-semibold">{occupant.name}</span>
-              {(occupant.user_id == null || occupant.id === me?.id) &&
-                <button type="button" onClick={() => { setEditedAlias(occupant.alias ?? ""); setEditingAlias(occupant.id); }}
-                  className="min-h-11 rounded-btn border border-line-strong px-3 font-semibold">Editar alias</button>}
-              {occupant.id !== me?.id && <button type="button" onClick={() => remove(occupant)} disabled={busy} className="min-h-11 rounded-btn border border-line-strong px-3 font-semibold text-danger">Sacar</button>}
-            </div>}
-            {current && occupant && editingAlias === occupant.id && <div data-selection-context>
-              <AliasEditor value={editedAlias} onChange={setEditedAlias} onSave={() => saveAlias(occupant)}
-                onCancel={() => setEditingAlias(null)} busy={busy} error={playerAliasError(editedAlias) ?? error} />
-            </div>}
-            {!closed && me && !occupant && (editingAlias === me.id ?
-              <AliasEditor value={editedAlias} onChange={setEditedAlias} onSave={() => saveAlias(me)}
-                onCancel={() => setEditingAlias(null)} busy={busy} error={playerAliasError(editedAlias) ?? error} /> :
-              <button type="button" onClick={() => { setEditedAlias(me.alias ?? ""); setEditingAlias(me.id); }}
-                className="min-h-11 self-start rounded-btn border border-line-strong bg-surface px-3 text-13 font-semibold">Editar mi alias</button>)}
-            {!closed && managedPlayer && <TeamChoice team={managedPlayer.team}
-              label={`Equipo de ${managedPlayer.name}`}
-              onTeam={(next) => { void changePlayerTeam(managedPlayer, next); }}
-              unavailable={teamFull} busy={!ready || busy} />}
+            {current && occupant && !closed && (
+              <div
+                data-selection-context
+                className="flex flex-wrap items-center gap-2 rounded-panel border border-line bg-surface p-2.5 text-13"
+              >
+                <span className="min-w-0 flex-1 font-semibold">
+                  {occupant.name}
+                </span>
+                {(occupant.user_id == null || occupant.id === me?.id) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditedAlias(occupant.alias ?? "");
+                      setEditingAlias(occupant.id);
+                    }}
+                    className="min-h-11 rounded-btn border border-line-strong px-3 font-semibold"
+                  >
+                    Editar alias
+                  </button>
+                )}
+                {occupant.id !== me?.id && (
+                  <button
+                    type="button"
+                    onClick={() => remove(occupant)}
+                    disabled={busy}
+                    className="min-h-11 rounded-btn border border-line-strong px-3 font-semibold text-danger"
+                  >
+                    Sacar
+                  </button>
+                )}
+              </div>
+            )}
+            {current && occupant && editingAlias === occupant.id && (
+              <div data-selection-context>
+                <AliasEditor
+                  value={editedAlias}
+                  onChange={setEditedAlias}
+                  onSave={() => saveAlias(occupant)}
+                  onCancel={() => setEditingAlias(null)}
+                  busy={busy}
+                  error={playerAliasError(editedAlias) ?? error}
+                />
+              </div>
+            )}
+            {!closed && managedPlayer && (
+              <TeamChoice
+                team={managedPlayer.team}
+                label={`Equipo de ${managedPlayer.name}`}
+                onTeam={(next) => {
+                  void changePlayerTeam(managedPlayer, next);
+                }}
+                unavailable={teamFull}
+                busy={!ready || busy}
+              />
+            )}
             <MatchPitch
               match={match}
               meId={me?.id}
@@ -311,11 +416,29 @@ export function OrganizerView({ state, closed, shareHref }: { state: MatchState;
               onClearSelection={() => setSelected(null)}
               onMove={moveToken}
             />
-            <details className="text-13 text-ink-2"><summary className="min-h-11 cursor-pointer font-semibold">Restablecer posiciones</summary>
-              <div className="flex gap-2">{(["A", "B"] as const).map((t) => <button key={t} type="button" onClick={() => resetTeam(t)} disabled={!ready || busy} className="min-h-11 rounded-btn border border-line-strong px-3">{TEAM_LABEL[t]}</button>)}</div>
+            <details className="text-13 text-ink-2">
+              <summary className="min-h-11 cursor-pointer font-semibold">
+                Restablecer posiciones
+              </summary>
+              <div className="flex gap-2">
+                {(["A", "B"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => resetTeam(t)}
+                    disabled={!ready || busy}
+                    className="min-h-11 rounded-btn border border-line-strong px-3"
+                  >
+                    {TEAM_LABEL[t]}
+                  </button>
+                ))}
+              </div>
             </details>
             <p className="text-13 leading-[1.45] text-ink-2 lg:flex lg:gap-5">
-              <span>Arrastrá cualquier ficha dentro de su mitad. Tocá una ficha ajena para administrarla.</span>
+              <span>
+                Arrastrá cualquier ficha dentro de su mitad. Tocá una ficha
+                ajena para administrarla.
+              </span>
             </p>
             {error && closed && (
               <p role="alert" className="text-14 font-semibold text-danger">
