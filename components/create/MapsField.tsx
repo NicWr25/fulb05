@@ -214,6 +214,11 @@ function PlaceSearch({
       <div
         ref={hostRef}
         aria-describedby={error ? errorId : undefined}
+        // Enter en el buscador es para elegir una sugerencia, no para enviar
+        // el formulario (el de crear o el de editar) que lo contiene.
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.preventDefault();
+        }}
         className={`maps-search min-h-[46px] rounded-field ${error ? "maps-search-error" : ""}`}
       >
         {!ready && (
