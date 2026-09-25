@@ -167,7 +167,7 @@ La rama de trabajo implementa la UI minimalista Blanco/Negro y el plan posterior
   Insertar con `slot: null` asigna el primer lugar libre en el trigger o falla `team_full`.
 - La barra para anotarse y la confirmación de la propia inscripción van arriba de la
   cancha. Los lugares libres se numeran del 1 al formato; no hay roles ni listas abajo.
-- Google Maps es obligatorio al crear/editar; el nombre de la cancha es opcional y se
-  extrae localmente de enlaces largos `/maps/place/` cuando es posible.
+- Google Maps es obligatorio al crear/editar y la cancha solo se elige con el buscador de
+  Places (no se puede pegar un enlace); el nombre de la cancha sale del lugar elegido.
 - Migración nueva: `20260925000100_simplify_matches.sql`. No editar migraciones previas.
 - Antes de commit, `db push` o `git push`, mostrar el trabajo y esperar OK de Nico.

@@ -14,7 +14,7 @@ import { SuccessMark } from "@/components/ui/SuccessMark";
 import { TeamSwatch } from "@/components/ui/TeamSwatch";
 import { TeamToggle } from "@/components/ui/TeamToggle";
 import { TextField } from "@/components/ui/TextField";
-import { LinkIcon, PinIcon, WhatsAppIcon } from "@/components/ui/icons";
+import { LinkIcon, WhatsAppIcon } from "@/components/ui/icons";
 import { Pitch, PitchSpot } from "@/components/pitch/Pitch";
 import { PlayerToken } from "@/components/pitch/PlayerToken";
 import { ShirtRow } from "@/components/pitch/ShirtRow";
@@ -118,14 +118,6 @@ export function UiGallery() {
           <TextField label="Tu nombre" placeholder="ej. Nico" />
           <TextField label="Nombre del partido" labelNote="(opcional)" placeholder="ej. Fútbol del viernes" />
           <TextField label="Cancha" placeholder="Nombre de la cancha" error="Contanos dónde se juega." />
-          <TextField
-            label="Ubicación en Google Maps"
-            labelNote="(opcional)"
-            type="url"
-            placeholder="Pegá el enlace de la cancha"
-            icon={<PinIcon />}
-            hint="En Google Maps buscá la cancha, tocá Compartir y copiá el enlace."
-          />
           <TeamToggle value={team} onChange={setTeam} />
         </div>
       </Section>

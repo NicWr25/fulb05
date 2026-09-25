@@ -2,8 +2,6 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { MapsLink } from "@/components/ui/MapsLink";
-import { TextField } from "@/components/ui/TextField";
-import { PinIcon } from "@/components/ui/icons";
 import {
   loadPlaces,
   mapsEnabled,
@@ -12,7 +10,7 @@ import {
   type LatLngLiteral,
   type PlacePrediction,
 } from "@/lib/maps/loader";
-import { mapsUrlFromPlace, venueFromMapsUrl, venueName } from "@/lib/domain/validation";
+import { mapsUrlFromPlace, venueName } from "@/lib/domain/validation";
 
 // Centro de Montevideo: las sugerencias priorizan (no restringen) esta zona.
 const MONTEVIDEO = { center: { lat: -34.8941, lng: -56.1650 }, radius: 25_000 };
@@ -24,89 +22,70 @@ type Props = {
   value: string;
   /** Nombre guardado de la cancha (al editar), para mostrarlo. */
   venue?: string | null;
-  /**
-   * `venue` = nombre de la cancha que corresponde a ese enlace: el del lugar
-   * elegido, el que trae un enlace largo pegado, o null.
-   */
+  /** `venue` = nombre del lugar elegido en el buscador, o null. */
   onChange: (mapsUrl: string, venue: string | null) => void;
   error?: string;
 };
 
 /**
- * "Ubicación en Google Maps": buscador de lugares de Google y, como plan B,
- * el campo para pegar un enlace. El valor final siempre es un enlace que
- * valida el mismo CHECK de Postgres, venga de donde venga.
+ * "Ubicación en Google Maps": buscador de lugares de Google. Es la única forma
+ * de cargar la cancha; el enlace que se guarda lo arma `mapsUrlFromPlace` y
+ * cumple el mismo CHECK de Postgres.
  */
 export function MapsField({ value, venue, onChange, error }: Props) {
-  const [mode, setMode] = useState<"search" | "paste">(mapsEnabled ? "search" : "paste");
   const [unavailable, setUnavailable] = useState(!mapsEnabled);
   const [picked, setPicked] = useState<Picked | null>(null);
 
-  const canSearch = !unavailable && mode === "search";
+  if (value) {
+    return (
+      <Selected
+        picked={picked ?? (venue ? { name: venue, address: "" } : null)}
+        href={value}
+        canChange={!unavailable}
+        onChange={() => {
+          setPicked(null);
+          onChange("", null);
+        }}
+      />
+    );
+  }
 
-  if (!canSearch) {
+  if (unavailable) {
     return (
       <div className="flex flex-col gap-1.5">
-        <TextField
-          label="Ubicación en Google Maps"
-          type="url"
-          inputMode="url"
-          autoComplete="off"
-          placeholder="Pegá el enlace de la cancha"
-          icon={<PinIcon />}
-          value={value}
-          onChange={(e) => onChange(e.target.value, venueFromMapsUrl(e.target.value))}
-          error={error}
-          hint="En Google Maps buscá la cancha, tocá Compartir y copiá el enlace. Así los jugadores ven cómo llegar."
-        />
-        {!unavailable && (
-          <SwitchButton onClick={() => setMode("search")}>Mejor buscarla por nombre</SwitchButton>
-        )}
+        <span className="text-13 font-semibold text-ink-2">Ubicación en Google Maps</span>
+        <p role="alert" className="rounded-field border border-line-strong bg-field px-3.5 py-2.5 text-14 text-danger">
+          No pudimos cargar el buscador de Google Maps. Recargá la página para intentar de nuevo.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      {value ? (
-        <Selected
-          picked={picked ?? (venue ? { name: venue, address: "" } : null)}
-          href={value}
-          onChange={() => {
-            setPicked(null);
-            onChange("", null);
-          }}
-        />
-      ) : (
-        <PlaceSearch
-          error={error ? "Buscá la cancha y elegila de la lista." : undefined}
-          onUnavailable={() => setUnavailable(true)}
-          onSelect={(place) => {
-            const name = venueName(place.name) ?? place.address;
-            setPicked({ name, address: place.address, location: place.location });
-            onChange(mapsUrlFromPlace({ placeId: place.placeId, name }), venueName(place.name));
-          }}
-        />
-      )}
-      <SwitchButton onClick={() => setMode("paste")}>¿No la encontrás? Pegá un enlace</SwitchButton>
-    </div>
-  );
-}
-
-function SwitchButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="min-h-11 self-start text-13 font-semibold text-ink-2 underline underline-offset-2"
-    >
-      {children}
-    </button>
+    <PlaceSearch
+      error={error ? "Buscá la cancha y elegila de la lista." : undefined}
+      onUnavailable={() => setUnavailable(true)}
+      onSelect={(place) => {
+        const name = venueName(place.name) ?? place.address;
+        setPicked({ name, address: place.address, location: place.location });
+        onChange(mapsUrlFromPlace({ placeId: place.placeId, name }), venueName(place.name));
+      }}
+    />
   );
 }
 
 /** Lugar ya elegido (o el enlace guardado, al editar) con opción de cambiarlo. */
-function Selected({ picked, href, onChange }: { picked: Picked | null; href: string; onChange: () => void }) {
+function Selected({
+  picked,
+  href,
+  canChange,
+  onChange,
+}: {
+  picked: Picked | null;
+  href: string;
+  canChange: boolean;
+  onChange: () => void;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-13 font-semibold text-ink-2">Ubicación en Google Maps</span>
@@ -129,13 +108,15 @@ function Selected({ picked, href, onChange }: { picked: Picked | null; href: str
             </MapsLink>
           )}
         </div>
-        <button
-          type="button"
-          onClick={onChange}
-          className="min-h-11 shrink-0 px-1 text-14 font-semibold text-ink underline underline-offset-2"
-        >
-          Cambiar
-        </button>
+        {canChange && (
+          <button
+            type="button"
+            onClick={onChange}
+            className="min-h-11 shrink-0 px-1 text-14 font-semibold text-ink underline underline-offset-2"
+          >
+            Cambiar
+          </button>
+        )}
       </div>
       {picked?.location && <PlaceMap position={picked.location} title={picked.name} />}
     </div>

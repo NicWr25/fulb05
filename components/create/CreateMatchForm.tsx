@@ -161,7 +161,6 @@ export function CreateMatchForm() {
           value={input.organizerName}
           onChange={(e) => set("organizerName")(e.target.value)}
           error={show("organizerName")}
-          hint="Aparece como “Organiza …” en el partido. No hace falta crear cuenta."
         />
 
         {serverError && (

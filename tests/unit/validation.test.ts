@@ -3,7 +3,6 @@ import {
   isValidMapsUrl,
   mapsUrlFromPlace,
   normalizeMapsUrl,
-  venueFromMapsUrl,
   venueName,
   playerNameError,
   validateMatchInput,
@@ -63,13 +62,8 @@ describe("enlaces de Google Maps", () => {
   });
 });
 
-it("extrae el nombre de enlaces largos y deja los cortos sin nombre", () => {
-  expect(venueFromMapsUrl("https://www.google.com/maps/place/Cancha+Parque/@-34,56")).toBe("Cancha Parque");
-  expect(venueFromMapsUrl("https://maps.app.goo.gl/abc")).toBeNull();
-});
-
 describe("mapsUrlFromPlace", () => {
-  it("arma un enlace de Maps URLs que pasa el mismo CHECK que uno pegado", () => {
+  it("arma un enlace de Maps URLs que pasa el CHECK de la base", () => {
     const url = mapsUrlFromPlace({ placeId: "ChIJ-abc_123", name: "Complejo Élite & Fútbol 5" });
     expect(url).toBe(
       "https://www.google.com/maps/search/?api=1&query=Complejo+%C3%89lite+%26+F%C3%BAtbol+5&query_place_id=ChIJ-abc_123",

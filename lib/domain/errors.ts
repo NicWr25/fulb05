@@ -14,7 +14,7 @@ type AnyError = { code?: string; message?: string; status?: number; name?: strin
 const BY_MESSAGE: Record<string, string> = {
   match_closed: "Las inscripciones ya cerraron: el partido empezó.",
   team_full: "Ese equipo está completo. Elegí el otro equipo.",
-  maps_required: "Pegá el enlace de Google Maps.",
+  maps_required: "Buscá la cancha y elegila de la lista.",
   format_too_small: "Hay más jugadores que lugares para ese formato.",
   organizer_must_play: "El organizador tiene que formar parte del partido.",
   player_not_found: "Ese jugador ya no está en el partido.",

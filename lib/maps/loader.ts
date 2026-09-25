@@ -8,7 +8,7 @@
  * y Places API (New), y con cuotas diarias debajo de la capa gratuita.
  *
  * Sin key (CI, deploys de preview) o si el script no carga, `loadPlaces()`
- * rechaza y el formulario vuelve al campo de pegar el enlace.
+ * rechaza y el formulario avisa que el buscador no está disponible.
  */
 
 // Tipos mínimos de lo que usamos. Se evita sumar @types/google.maps (miles de

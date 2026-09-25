@@ -80,7 +80,7 @@ export function validateMatchInput(input: CreateMatchInput, now: Date = new Date
   }
 
   const maps = normalizeMapsUrl(input.mapsUrl);
-  if (!maps) e.mapsUrl = "Pegá el enlace de Google Maps.";
+  if (!maps) e.mapsUrl = "Buscá la cancha y elegila de la lista.";
   else if (!isValidMapsUrl(maps)) e.mapsUrl = "Ese enlace no parece de Google Maps.";
 
   const nameErr = playerNameError(input.organizerName);
@@ -93,8 +93,7 @@ export function validateMatchInput(input: CreateMatchInput, now: Date = new Date
  * Enlace de Google Maps para un lugar elegido en el buscador. Usa el formato
  * público "Maps URLs" (no necesita key ni cobra): `query_place_id` apunta al
  * lugar exacto y `query` es el texto de respaldo si el id dejara de existir.
- * El resultado cumple el mismo CHECK que un enlace pegado a mano: si el
- * nombre codificado lo haría pasar de 500 caracteres, se acorta el nombre
+ * El resultado cumple el CHECK de `matches.maps_url`: si el nombre codificado lo haría pasar de 500 caracteres, se acorta el nombre
  * (por caracteres completos, para no cortar un emoji a la mitad).
  */
 export function mapsUrlFromPlace(place: { placeId: string; name: string }): string {
@@ -113,7 +112,7 @@ export function mapsUrlFromPlace(place: { placeId: string; name: string }): stri
 
 /**
  * Nombre de la cancha a partir del lugar elegido. Ya no se escribe a mano:
- * sale de Google (o del enlace pegado), así que se limpia para que siempre
+ * sale de Google, así que se limpia para que siempre
  * cumpla el CHECK de la base (sin caracteres de control, hasta 80).
  * null = sin nombre (la UI muestra "Ver ubicación").
  */
@@ -121,16 +120,4 @@ export function venueName(raw: string | null | undefined): string | null {
   const clean = (raw ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
   const name = Array.from(clean).slice(0, LIMITS.venue).join("").trim();
   return name || null;
-}
-
-/** Solo los enlaces largos /maps/place/ incluyen un nombre legible localmente. */
-export function venueFromMapsUrl(raw: string): string | null {
-  try {
-    const url = new URL(normalizeMapsUrl(raw));
-    const match = url.pathname.match(/\/maps\/place\/([^/]+)/i);
-    if (!match) return null;
-    return venueName(decodeURIComponent(match[1].replace(/\+/g, " ")));
-  } catch {
-    return null;
-  }
 }
