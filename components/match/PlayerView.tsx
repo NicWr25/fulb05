@@ -15,7 +15,8 @@ import { ShareIconLink, ShareWideLink } from "./ShareButtons";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import type { MatchState } from "@/lib/hooks/useMatch";
 import { formatMatchDate } from "@/lib/domain/datetime";
-import { errorKind, errorMessage, SLOT_TAKEN_MESSAGE } from "@/lib/domain/errors";
+import { errorMessage } from "@/lib/domain/errors";
+import { entryDestination } from "@/lib/domain/entry";
 import { hasNameInTeam, missingCount, missingLabel, slotsByTeam } from "@/lib/domain/match";
 import { type Point } from "@/lib/domain/positions";
 import { matchTitle } from "@/lib/domain/share";
@@ -28,9 +29,8 @@ type AnyError = Parameters<typeof errorMessage>[0];
  * Vista del jugador (diseño: design/jugador-*.dc.html), interactiva.
  * El servidor ya pintó el estado inicial; acá se suman la sesión y las acciones.
  *
- * Inscripción y movimientos escriben directo en match_players: RLS limita
- * las filas y los triggers validan lugar y cierre. Editar el alias usa una
- * RPC que también valida la identidad. El cliente solo traduce los errores.
+ * La inscripción pasa por join_match: la base asigna el lugar y guarda la
+ * posición inicial de una vez. El arrastre posterior usa move_token.
  */
 export function PlayerView({
   state,
@@ -41,8 +41,7 @@ export function PlayerView({
   closed: boolean;
   shareHref: string;
 }) {
-  const { match, uid, me, status, reload } = state;
-  const [picked, setPicked] = useState<SlotRef | null>(null);
+  const { match, uid, me, status, arrivingIds, swapMoves, reload } = state;
   const [name, setName] = useState("");
   const [alias, setAlias] = useState("");
   const [editAlias, setEditAlias] = useState<string | null>(null);
@@ -67,24 +66,12 @@ export function PlayerView({
   const slots = slotsByTeam(match);
   const ready = status === "ready";
 
-  // Si el lugar elegido lo ocupó otra persona (se ve al recargar), la
-  // selección deja de valer. Se deriva en el render, sin efectos.
-  const selected = !me && picked && !slots[picked.team][picked.slot] && picked.slot < match.format ? picked : null;
   const teamFull = (t: Team) => slots[t].every(Boolean);
-  const targetTeam = selected?.team ?? team;
-  const duplicateName = hasNameInTeam(name, targetTeam, match.players);
-
-  function pick(ref: SlotRef) {
-    setError(null);
-    const same = selected?.team === ref.team && selected.slot === ref.slot;
-    setPicked(same ? null : ref);
-    if (!me) setTeam(ref.team);
-  }
+  const duplicateName = hasNameInTeam(name, team, match.players);
 
   function chooseTeam(t: Team) {
     setError(null);
     setTeam(t);
-    if (selected && selected.team !== t) setPicked(null);
   }
 
   /** Corre una escritura, traduce el error si lo hay y siempre relee el estado. */
@@ -94,15 +81,9 @@ export function PlayerView({
     try {
       const { error: err } = await action();
       if (err) {
-        if (errorKind(err) === "slot_taken") {
-          setPicked(null);
-          setError(SLOT_TAKEN_MESSAGE);
-        } else {
-          setError(errorMessage(err));
-        }
+        setError(errorMessage(err));
         return false;
       }
-      setPicked(null);
       return true;
     } catch (err) {
       setError(errorMessage(err as AnyError));
@@ -116,16 +97,16 @@ export function PlayerView({
   async function join() {
     setTried(true);
     if (playerNameError(name) || playerAliasError(alias) || !uid) return;
-    // Sin lugar elegido, la base asigna el primer lugar libre o rechaza el alta.
-    const target = selected ?? { team, slot: null as unknown as number };
+    const point = entryDestination(match, team);
     await run(() =>
-      supabaseBrowser().from("match_players").insert({
-        match_id: match.id,
-        user_id: uid,
-        name: name.trim(),
-        alias: alias.trim() || null,
-        team: target.team,
-        slot: target.slot,
+      supabaseBrowser().rpc("join_match", {
+        p_match_id: match.id,
+        p_team: team,
+        p_name: name.trim(),
+        p_alias: alias.trim(),
+        p_x: point.x,
+        p_y: point.y,
+        p_guest: false,
       }),
     );
   }
@@ -173,9 +154,8 @@ export function PlayerView({
   const when = formatMatchDate(match.starts_at, match.timezone);
   const missing = missingCount(match);
 
-  let hint = "Sin lugar elegido: primer lugar libre del equipo.";
-  if (selected) hint = `Vas al lugar ${selected.slot + 1} en ${TEAM_IN[selected.team]}.`;
-  else if (teamFull(team)) hint = `${TEAM_IN[team][0].toUpperCase() + TEAM_IN[team].slice(1)} está completo.`;
+  let hint = "Te asignamos el primer lugar libre del equipo. Después podés mover tu ficha.";
+  if (teamFull(team)) hint = `${TEAM_IN[team][0].toUpperCase() + TEAM_IN[team].slice(1)} está completo.`;
 
   let card: React.ReactNode = null;
   if (closed) {
@@ -227,7 +207,7 @@ export function PlayerView({
               onAlias={(value) => { setAlias(value); setError(null); }}
               aliasError={tried ? playerAliasError(alias) : null}
               showAlias={duplicateName || Boolean(alias)}
-              team={targetTeam}
+              team={team}
               onTeam={chooseTeam}
               teamDisabled={(value) => !ready || teamFull(value)}
               hint={notice ?? (duplicateName ? "Ya hay alguien con ese nombre en el equipo. Podés usar un alias; si no, se verá el número del lugar." : hint)}
@@ -235,7 +215,7 @@ export function PlayerView({
               placeholder="Tu nombre"
               submitLabel={!ready ? "Conectando…" : "Anotarme"}
               busy={busy}
-              disabled={!ready || (!selected && teamFull(team))}
+              disabled={!ready || teamFull(team)}
               onSubmit={join}
             />
           )}
@@ -255,12 +235,10 @@ export function PlayerView({
           <MatchPitch
             match={match}
             meId={me?.id}
-            selected={selected}
-            // Solo tu propia ficha se arrastra; solo los lugares libres se eligen.
-            canDrag={(_, player) => !closed && Boolean(me && player?.id === me.id)}
-            canSelect={(_, player) => !closed && !me && !player}
-            onSelect={pick}
-            onClearSelection={() => setPicked(null)}
+            arrivingIds={arrivingIds}
+            swapMoves={swapMoves}
+            // Solo tu propia ficha se arrastra.
+            canDrag={(_, player) => !closed && Boolean(me && player.id === me.id)}
             onMove={moveToken}
             disabled={busy}
           />
@@ -269,7 +247,7 @@ export function PlayerView({
               ? "El partido ya empezó: la cancha queda como estaba."
               : me?.slot != null
                 ? "Arrastrá tu ficha dentro de tu mitad para acomodarte. Usá los botones para cambiar de equipo."
-                : "Tocá un lugar libre para elegirlo. Cuando estés anotado, vas a poder arrastrar tu ficha."}
+                : "Elegí tu equipo y anotate. Después vas a poder arrastrar tu ficha para acomodarte."}
           </p>
         </>
       }

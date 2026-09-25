@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
 import { Pitch, PitchSpot } from "@/components/pitch/Pitch";
 import { PlayerToken } from "@/components/pitch/PlayerToken";
+import { ShirtRow } from "@/components/pitch/ShirtRow";
+import { entryBumps, type EntryBump } from "@/lib/domain/entry";
 import { playerDisplayName, slotsByTeam, type Match, type Player } from "@/lib/domain/match";
+import type { SwapMove } from "@/lib/domain/swaps";
 import {
   clampPercent,
   clampToHalf,
@@ -23,6 +26,17 @@ export type SlotRef = { team: Team; slot: number };
 const DRAG_THRESHOLD_PX = 4;
 /** Paso de las flechas del teclado, en % de la cancha. */
 const KEY_STEP = 2;
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+function subscribeReducedMotion(onChange: () => void) {
+  const query = window.matchMedia(REDUCED_MOTION_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+function reducedMotionSnapshot() {
+  return window.matchMedia(REDUCED_MOTION_QUERY).matches;
+}
 
 type Drag = { ref: SlotRef; startX: number; startY: number; moved: boolean; point: Point };
 
@@ -36,8 +50,8 @@ function currentOrientation(): Orientation {
  * panel del organizador, con reglas distintas:
  *   - canDrag(ref, player): ¿se puede arrastrar esa ficha? (jugador: solo la
  *     propia; organizador: todas).
- *   - canSelect(ref, player): ¿se puede elegir ese lugar? (jugador: libres;
- *     organizador: todos).
+ *   - canSelect(ref, player): ¿se puede seleccionar esa ficha? (organizador:
+ *     para administrarla o intercambiarla).
  *
  * Arrastrar:
  *   - La ficha "frena" en la línea del medio (clampToHalf): cada equipo se
@@ -58,19 +72,24 @@ export function MatchPitch({
   onClearSelection,
   onMove,
   disabled,
+  arrivingIds = [],
+  swapMoves = [],
 }: {
   match: Pick<Match, "format" | "players" | "layout">;
   meId?: string | null;
   selected?: SlotRef | null;
-  canDrag?: (ref: SlotRef, player: Player | null) => boolean;
-  canSelect?: (ref: SlotRef, player: Player | null) => boolean;
+  canDrag?: (ref: SlotRef, player: Player) => boolean;
+  canSelect?: (ref: SlotRef, player: Player) => boolean;
   onSelect?: (ref: SlotRef) => void;
   onClearSelection?: () => void;
   /** Guarda la nueva posición; devuelve false si falló (la ficha vuelve a su lugar). */
   onMove?: (ref: SlotRef, point: Point) => Promise<boolean>;
   disabled?: boolean;
+  arrivingIds?: readonly string[];
+  swapMoves?: readonly SwapMove[];
 }) {
   const pitchRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useSyncExternalStore(subscribeReducedMotion, reducedMotionSnapshot, () => false);
   const [drag, setDrag] = useState<Drag | null>(null);
   // Posición ya soltada pero todavía no confirmada por la base: evita que la
   // ficha "vuelva" a su lugar viejo mientras viaja el pedido.
@@ -103,6 +122,23 @@ export function MatchPitch({
 
   const layout: Layout = resolveLayout(match.format, match.layout);
   const slots = slotsByTeam(match);
+  const swapById = new Map(reducedMotion ? [] : swapMoves.map((move) => [move.id, move.from] as const));
+  const arriving = new Set(reducedMotion ? [] : arrivingIds.filter((id) => !swapById.has(id)));
+  const bumped = new Map<string, EntryBump>();
+  const bends = new Map<string, Point>();
+  for (const id of arriving) {
+    const newcomer = match.players.find((player) => player.id === id);
+    if (!newcomer) continue;
+    const impacts = entryBumps(match, newcomer);
+    const destination = layout[newcomer.team][newcomer.slot];
+    bends.set(id, {
+      x: 50 + (destination.x - 50) * 0.55,
+      y: 50 + (destination.y - 50) * 0.55 - Math.sign(impacts[0]?.y ?? 0) * 6,
+    });
+    for (const bump of impacts) {
+      if (!arriving.has(bump.id) && !swapById.has(bump.id)) bumped.set(bump.id, bump);
+    }
+  }
   const same = (a: SlotRef | null | undefined, b: SlotRef) => a?.team === b.team && a.slot === b.slot;
 
   function pointOf(ref: SlotRef): Point {
@@ -145,7 +181,7 @@ export function MatchPitch({
     if (point) setDrag({ ...drag, moved: true, point });
   }
 
-  function onPointerUp(player: Player | null) {
+  function onPointerUp(player: Player) {
     if (!drag) return;
     if (drag.moved) commit(drag.ref, drag.point);
     else if (canSelect(drag.ref, player)) onSelect?.(drag.ref); // fue un toque
@@ -170,55 +206,65 @@ export function MatchPitch({
   const dragging = drag?.moved ? drag.ref : null;
 
   return (
-    <Pitch ref={pitchRef}>
-      {dragging && <div className="pitch-shade" data-team={dragging.team} aria-hidden="true" />}
-      {TEAMS.flatMap((team) =>
-        layout[team].map((_, slot) => {
-          const ref = { team, slot };
-          const player = slots[team][slot];
-          const mine = Boolean(player && meId && player.id === meId);
-          const draggable = canDrag(ref, player);
-          const selectable = canSelect(ref, player);
-          const isSelected = same(selected, ref);
-          const isDragging = same(dragging, ref);
-          const displayName = player ? playerDisplayName(player, match.players) : null;
-          const who = player ? `${mine ? "Vos" : displayName} en ${TEAM_IN[team]}${player.alias ? `, nombre real: ${player.name}` : ""}` : `Lugar ${slot + 1} libre en ${TEAM_IN[team]}`;
-          const label = draggable ? `${who}. Arrastrá o usá las flechas para moverla en tu mitad.` : who;
+    <>
+      <ShirtRow match={match} team="B" />
+      <Pitch ref={pitchRef}>
+        {dragging && <div className="pitch-shade" data-team={dragging.team} aria-hidden="true" />}
+        {TEAMS.flatMap((team) =>
+          layout[team].map((_, slot) => {
+            const ref = { team, slot };
+            const player = slots[team][slot];
+            if (!player) return null;
+            const mine = Boolean(meId && player.id === meId);
+            const draggable = canDrag(ref, player);
+            const selectable = canSelect(ref, player);
+            const isSelected = same(selected, ref);
+            const isDragging = same(dragging, ref);
+            const displayName = playerDisplayName(player, match.players);
+            const who = `${mine ? "Vos" : displayName} en ${TEAM_IN[team]}${player.alias ? `, nombre real: ${player.name}` : ""}`;
+            const label = draggable ? `${who}. Arrastrá o usá las flechas para moverla en tu mitad.` : who;
+            const entering = arriving.has(player.id);
+            const bump = bumped.get(player.id);
+            const swapFrom = swapById.get(player.id);
 
-          return (
-            <PitchSpot key={team + slot} point={pointOf(ref)} z={isDragging ? 20 : isSelected || mine ? 10 : 1}>
-              <PlayerToken
-                team={team}
-                playerName={displayName}
-                tagAboveMobile={pointOf(ref).x <= 10}
-                text={player ? initials(player.alias || player.name) : String(slot + 1)}
-                mine={mine}
-                selected={isSelected}
-                dragging={isDragging}
-                draggable={draggable}
-                static={!draggable && !selectable}
-                disabled={disabled}
-                aria-label={label}
-                data-pitch-selectable={selectable ? "" : undefined}
-                {...(draggable
-                  ? {
-                      onPointerDown: (e: PointerEvent<HTMLButtonElement>) => onPointerDown(ref, e),
-                      onPointerMove,
-                      onPointerUp: () => onPointerUp(player),
-                      onPointerCancel: () => setDrag(null),
-                      onKeyDown: (e: KeyboardEvent<HTMLButtonElement>) => onKeyDown(ref, e),
-                      // Con mouse/dedo la selección la maneja onPointerUp; acá
-                      // solo llegan los "clicks" de teclado (detail === 0).
-                      onClick: (e: React.MouseEvent) => {
-                        if (e.detail === 0 && selectable) onSelect?.(ref);
-                      },
-                    }
-                  : { onClick: () => onSelect?.(ref) })}
-              />
-            </PitchSpot>
-          );
-        }),
-      )}
-    </Pitch>
+            return (
+              <PitchSpot key={player.id} point={pointOf(ref)} arriving={entering}
+                bend={bends.get(player.id)} bump={bump} swapFrom={swapFrom}
+                z={entering || swapFrom || isDragging ? 20 : isSelected || mine ? 10 : 1}>
+                <PlayerToken
+                  team={team}
+                  playerName={displayName}
+                  tagAboveMobile={pointOf(ref).x <= 10}
+                  text={initials(player.alias || player.name)}
+                  mine={mine}
+                  selected={isSelected}
+                  dragging={isDragging}
+                  draggable={draggable}
+                  static={!draggable && !selectable}
+                  disabled={disabled || entering || Boolean(bump) || Boolean(swapFrom)}
+                  aria-label={label}
+                  data-pitch-selectable={selectable ? "" : undefined}
+                  {...(draggable
+                    ? {
+                        onPointerDown: (e: PointerEvent<HTMLButtonElement>) => onPointerDown(ref, e),
+                        onPointerMove,
+                        onPointerUp: () => onPointerUp(player),
+                        onPointerCancel: () => setDrag(null),
+                        onKeyDown: (e: KeyboardEvent<HTMLButtonElement>) => onKeyDown(ref, e),
+                        // Con mouse/dedo la selección la maneja onPointerUp; acá
+                        // solo llegan los "clicks" de teclado (detail === 0).
+                        onClick: (e: React.MouseEvent) => {
+                          if (e.detail === 0 && selectable) onSelect?.(ref);
+                        },
+                      }
+                    : { onClick: () => onSelect?.(ref) })}
+                />
+              </PitchSpot>
+            );
+          }),
+        )}
+      </Pitch>
+      <ShirtRow match={match} team="A" />
+    </>
   );
 }

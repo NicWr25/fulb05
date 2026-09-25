@@ -169,10 +169,55 @@
    * Misma fórmula que toScreen() en lib/domain/positions.ts.
    */
   .pitch-spot {
+    --spot-left: calc(var(--y) * 1%);
+    --spot-top: calc((100 - var(--x)) * 1%);
+    --bump-left: calc(var(--bump-y) * 1%);
+    --bump-top: calc(var(--bump-x) * -1%);
+    --entry-mid-left: calc(var(--entry-mid-y) * 1%);
+    --entry-mid-top: calc((100 - var(--entry-mid-x)) * 1%);
+    --swap-left: calc(var(--swap-y) * 1%);
+    --swap-top: calc((100 - var(--swap-x)) * 1%);
     position: absolute;
-    left: calc(var(--y) * 1%);
-    top: calc((100 - var(--x)) * 1%);
+    left: var(--spot-left);
+    top: var(--spot-top);
     transform: translate(-50%, -50%);
+  }
+
+  .pitch-spot-arriving {
+    animation: pitch-arrive 1s both;
+  }
+
+  .pitch-spot-bumped {
+    animation: pitch-bump 650ms both;
+  }
+
+  .pitch-spot-swapping {
+    animation: pitch-swap 600ms ease-in-out both;
+  }
+
+  @keyframes pitch-swap {
+    from { left: var(--swap-left); top: var(--swap-top); }
+    to { left: var(--spot-left); top: var(--spot-top); }
+  }
+
+  @keyframes pitch-arrive {
+    0% { left: 50%; top: -15%; opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
+    28% { left: 50%; top: 50%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    35% { left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.88); }
+    42% {
+      left: 50%; top: 50%; transform: translate(-50%, -50%) scale(1.08);
+      animation-timing-function: cubic-bezier(0.12, 0.75, 0.18, 1);
+    }
+    68% { left: var(--entry-mid-left); top: var(--entry-mid-top); }
+    100% { left: var(--spot-left); top: var(--spot-top); transform: translate(-50%, -50%) scale(1); }
+  }
+
+  @keyframes pitch-bump {
+    0%, 18%, 100% { left: var(--spot-left); top: var(--spot-top); }
+    44% {
+      left: calc(var(--spot-left) + var(--bump-left));
+      top: calc(var(--spot-top) + var(--bump-top));
+    }
   }
 
   @media (width >= 64rem) {
@@ -185,9 +230,19 @@
       );
     }
     .pitch-spot {
-      left: calc(var(--x) * 1%);
-      top: calc(var(--y) * 1%);
+      --spot-left: calc(var(--x) * 1%);
+      --spot-top: calc(var(--y) * 1%);
+      --bump-left: calc(var(--bump-x) * 1%);
+      --bump-top: calc(var(--bump-y) * 1%);
+      --entry-mid-left: calc(var(--entry-mid-x) * 1%);
+      --entry-mid-top: calc(var(--entry-mid-y) * 1%);
+      --swap-left: calc(var(--swap-x) * 1%);
+      --swap-top: calc(var(--swap-y) * 1%);
     }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pitch-spot-arriving, .pitch-spot-bumped, .pitch-spot-swapping { animation: none; }
   }
 }
 

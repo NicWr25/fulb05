@@ -13,6 +13,7 @@ import { PinIcon, WhatsAppIcon } from "@/components/ui/icons";
 import { ensureSession, supabaseBrowser } from "@/lib/supabase/browser";
 import { browserTimeZone } from "@/lib/domain/datetime";
 import { errorMessage } from "@/lib/domain/errors";
+import { entryDestination } from "@/lib/domain/entry";
 import {
   inviteMessage,
   whatsappUrl,
@@ -223,9 +224,16 @@ function Created({
   async function join() {
     setJoining(true); setJoinError(null);
     try {
-      const uid = await ensureSession();
-      const { error } = await supabaseBrowser().from("match_players").insert({
-        match_id: id, user_id: uid, name: input.organizerName.trim(), team, slot: null as unknown as number,
+      await ensureSession();
+      const point = entryDestination({ format: input.format, layout: null, players: [] }, team);
+      const { error } = await supabaseBrowser().rpc("join_match", {
+        p_match_id: id,
+        p_name: input.organizerName.trim(),
+        p_alias: "",
+        p_team: team,
+        p_x: point.x,
+        p_y: point.y,
+        p_guest: false,
       });
       if (error) throw error;
       setJoined(true);

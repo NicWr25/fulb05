@@ -141,6 +141,18 @@ export type Database = {
         Returns: Json
       }
       get_match_preview: { Args: { p_match_id: string }; Returns: Json }
+      join_match: {
+        Args: {
+          p_alias: string
+          p_guest: boolean
+          p_match_id: string
+          p_name: string
+          p_team: string
+          p_x: number
+          p_y: number
+        }
+        Returns: Json
+      }
       move_token: {
         Args: {
           p_match_id: string
@@ -158,6 +170,14 @@ export type Database = {
       }
       set_player_alias: {
         Args: { p_alias: string; p_match_id: string; p_player_id: string }
+        Returns: undefined
+      }
+      swap_players: {
+        Args: {
+          p_first_player_id: string
+          p_match_id: string
+          p_second_player_id: string
+        }
         Returns: undefined
       }
       update_match: {

@@ -17,8 +17,9 @@ import { TextField } from "@/components/ui/TextField";
 import { LinkIcon, PinIcon, WhatsAppIcon } from "@/components/ui/icons";
 import { Pitch, PitchSpot } from "@/components/pitch/Pitch";
 import { PlayerToken } from "@/components/pitch/PlayerToken";
+import { ShirtRow } from "@/components/pitch/ShirtRow";
 import { defaultLayout, initials } from "@/lib/domain/positions";
-import { TEAM_IN, TEAM_LABEL, TEAMS, type Format, type Team } from "@/lib/domain/teams";
+import { TEAM_LABEL, TEAMS, type Format, type Team } from "@/lib/domain/teams";
 
 const COLORS = [
   "cream", "surface", "sand", "field", "ink", "ink-2", "ink-3", "ink-4", "line",
@@ -44,8 +45,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export function UiGallery() {
   const [format, setFormat] = useState<Format>(7);
   const [team, setTeam] = useState<Team>("A");
-  const [sel, setSel] = useState<string | null>("A3");
   const layout = defaultLayout(format);
+  const samplePlayers = TEAMS.flatMap((value) =>
+    SAMPLE[value].slice(0, format).flatMap((name, slot) =>
+      name ? [{ id: value + slot, name, team: value, slot }] : [],
+    ),
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-4 py-6 lg:px-8">
@@ -73,7 +78,7 @@ export function UiGallery() {
         <p className="font-display text-30 leading-[1.05] font-extrabold">Fútbol del viernes</p>
         <p className="font-display text-20 font-extrabold">Anotate</p>
         <p className="text-16 leading-normal text-ink-2">
-          Cada uno se anota solo, en su equipo y en un lugar libre. (IBM Plex Sans 16)
+          Cada uno se anota en su equipo y acomoda su ficha arrastrándola. (IBM Plex Sans 16)
         </p>
         <p className="text-13 text-ink-2">Texto de ayuda 13px, ink-2.</p>
       </Section>
@@ -161,38 +166,22 @@ export function UiGallery() {
 
       <Section title="Cancha">
         <p className="text-13 text-ink-2">
-          Muestra: Santi es &ldquo;vos&rdquo; (borde dorado), el lugar A3 está seleccionado (anillo). Tocá un
-          lugar libre para seleccionarlo. Tab + Enter también funciona.
+          Las remeras muestran lugares libres y ocupados. Dentro de la cancha solo están las fichas anotadas;
+          Santi es &ldquo;vos&rdquo; (borde dorado).
         </p>
-        <div className="w-full max-w-[358px] lg:max-w-[840px]">
+        <div className="flex w-full max-w-[358px] flex-col gap-3 lg:max-w-[840px]">
+          <ShirtRow match={{ format, players: samplePlayers }} team="B" />
           <Pitch>
-            {TEAMS.flatMap((t) =>
-              layout[t].map((point, i) => {
-                const name = SAMPLE[t][i] ?? null;
-                const key = t + i;
-                const mine = name === "Santi";
-                const selected = sel === key;
-                return (
-                  <PitchSpot key={key} point={point} z={selected || mine ? 10 : 1}>
-                    <PlayerToken
-                      team={t}
-                      playerName={name}
-                      text={name ? initials(name) : String(i + 1)}
-                      mine={mine}
-                      selected={selected}
-                      static={Boolean(name)}
-                      aria-label={
-                        name
-                          ? `${mine ? "Vos" : name} en ${TEAM_IN[t]}`
-                          : `Lugar ${i + 1} libre en ${TEAM_IN[t]}`
-                      }
-                      onClick={() => setSel(selected ? null : key)}
-                    />
-                  </PitchSpot>
-                );
-              }),
-            )}
+            {samplePlayers.map((player) => {
+              const mine = player.name === "Santi";
+              return <PitchSpot key={player.id} point={layout[player.team][player.slot]} z={mine ? 10 : 1}>
+                <PlayerToken team={player.team} playerName={player.name}
+                  text={initials(player.name)} mine={mine} static
+                  aria-label={mine ? "Vos" : player.name} />
+              </PitchSpot>;
+            })}
           </Pitch>
+          <ShirtRow match={{ format, players: samplePlayers }} team="A" />
         </div>
       </Section>
     </main>

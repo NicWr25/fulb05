@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { errorMessage } from "@/lib/domain/errors";
+import { entryDestination } from "@/lib/domain/entry";
 import type { MatchState } from "@/lib/hooks/useMatch";
 import type { Team } from "@/lib/domain/teams";
 
@@ -16,9 +17,15 @@ export function OrganizerSetup({ state }: { state: MatchState }) {
   async function join() {
     if (!state.uid) return;
     setBusy(true); setError(null);
-    const result = await supabaseBrowser().from("match_players").insert({
-      match_id: state.match.id, user_id: state.uid,
-      name: state.match.organizer_name, team, slot: null as unknown as number,
+    const point = entryDestination(state.match, team);
+    const result = await supabaseBrowser().rpc("join_match", {
+      p_match_id: state.match.id,
+      p_name: state.match.organizer_name,
+      p_alias: "",
+      p_team: team,
+      p_x: point.x,
+      p_y: point.y,
+      p_guest: false,
     });
     if (result.error) setError(errorMessage(result.error));
     else await state.reload();

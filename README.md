@@ -4,15 +4,16 @@
 
 App web (pensada para el celular) para armar equipos de **fútbol 5 o 7** entre amigos.
 Alguien crea el partido, pasa el link por WhatsApp y cada uno entra, pone su nombre y
-elige equipo y lugar tocando la cancha. Todos ven lo mismo, en vivo, sin registrarse.
+elige equipo. Todos ven lo mismo, en vivo, sin registrarse.
 
 - **Anotarse sin cuenta**: cada navegador recibe una identidad anónima.
-- **Cancha interactiva**: elegís un lugar libre; después arrastrás tu ficha para
-  acomodarte, siempre dentro de la mitad de tu equipo.
+- **Cancha interactiva**: tu ficha entra desde el centro y después la arrastrás para
+  acomodarte dentro de la mitad de tu equipo. Las remeras afuera muestran los lugares.
 - **Capacidad exacta**: juegan 5 vs 5 o 7 vs 7; cuando un equipo se llena, no se anotan más jugadores en él.
 - **En vivo**: los cambios de cualquiera aparecen en todos los celulares sin recargar.
 - **Organizador**: agrega gente que no usa la app, saca jugadores, cambia formato,
-  día, hora o cancha, y acomoda cualquier ficha desde el navegador donde creó el partido.
+  día, hora o cancha, acomoda cualquier ficha e intercambia dos jugadores tocándolos
+  desde el navegador donde creó el partido.
 - **Vista previa en WhatsApp**: `Fútbol 5 · Jueves 21:00 · Cancha X` con imagen propia.
 - **Se borra solo**: los partidos desaparecen 7 días después de jugarse.
 
@@ -60,8 +61,9 @@ Flujo de una visita a `/p/[id]`:
    (que no ejecuta JavaScript).
 2. **Cliente**: crea o recupera la sesión anónima y llama a `open_match(id)`, que lo
    registra como "visitante" de ese partido. Desde ahí, RLS le deja leer las tablas.
-3. **Acciones**: anotarse o bajarse son `INSERT`/`DELETE` directos sobre
-   `match_players`; lo permitido lo deciden **RLS y triggers**, no el cliente.
+3. **Acciones**: anotarse usa `join_match`, que asigna lugar y posición en una
+   transacción; bajarse es un `DELETE` directo sobre `match_players`.
+   Lo permitido lo deciden **RLS, triggers y RPC**, no el cliente.
    Crear o editar partidos, cambiar de equipo, mover fichas y editar alias son
    **RPC** (`security definer`).
 4. **Tiempo real**: el cliente se suscribe a cambios; ante cualquier evento relee el
@@ -198,8 +200,14 @@ de un equipo se distinguen en la cancha con el número del lugar.
   lugar libre; si no hay lugar, la base responde `team_full`.
 - Un *advisory lock* por partido serializa las escrituras de ese partido: dos
   "anotarme al primer lugar libre" simultáneos no chocan.
-- Si dos personas eligen **el mismo lugar**, el `UNIQUE (match_id, team, slot)` hace
-  fallar a la segunda con un error claro ("Ese lugar lo acaba de ocupar otra persona").
+- `join_match` guarda la posición final del impulso junto con la inscripción.
+  La base valida que quede dentro de la mitad del equipo; los choques de las
+  otras fichas son visuales y no cambian sus posiciones guardadas.
+- `swap_players` intercambia equipo y lugar de dos jugadores en una transacción,
+  incluso con equipos llenos. La unicidad de lugares se difiere solo durante esa
+  operación; las posiciones guardadas quedan en sus lugares originales.
+- `UNIQUE (match_id, team, slot)` protege cada lugar incluso ante escrituras
+  simultáneas; el trigger elige el primero libre mientras mantiene el lock.
 
 ### Límites contra abuso
 - `CHECK` en la base: largos máximos (nombre 24, cancha 80, título 60), sin caracteres
@@ -242,9 +250,8 @@ Si alguien vuelve con la sesión de un usuario borrado, el cliente lo detecta
 
 - Todo control táctil mide al menos **44×44 px**.
 - Contraste verificado con la fórmula de WCAG para todos los pares de colores (mínimo
-  4,5:1 en texto). Correcciones respecto del diseño: velo oscuro en los lugares libres
-  (el original daba ~3,8:1) y foco visible contextual (tinta sobre crema, dorado sobre
-  el césped).
+  4,5:1 en texto). Las remeras fuera de la cancha indican la ocupación de cada equipo;
+  el foco visible usa tinta sobre crema y dorado sobre el césped.
 - Arrastrar tiene alternativa con teclado (flechas), como pide WCAG 2.5.7.
 - Mensajes de estado con `aria-live`; diálogo de edición con `<dialog>` nativo.
 

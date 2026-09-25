@@ -5,6 +5,7 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { ensureSession, supabaseBrowser } from "@/lib/supabase/browser";
 import type { Match, Player } from "@/lib/domain/match";
 import type { Layout } from "@/lib/domain/positions";
+import { detectSwap, type SwapMove } from "@/lib/domain/swaps";
 import type { Format, Team } from "@/lib/domain/teams";
 
 export type MatchStatus = "connecting" | "ready" | "error" | "gone";
@@ -39,11 +40,19 @@ export function useMatch(initial: Match) {
   const [status, setStatus] = useState<MatchStatus>("connecting");
   const [live, setLive] = useState<LiveStatus>("connecting");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [arrivingIds, setArrivingIds] = useState<string[]>([]);
+  const [swapMoves, setSwapMoves] = useState<SwapMove[]>([]);
   const idRef = useRef(initial.id);
   const uidRef = useRef<string | null>(null);
   const playerIdsRef = useRef(new Set(initial.players.map((p) => p.id)));
+  const matchRef = useRef(initial);
+  const initializedRef = useRef(false);
+  const arrivalTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const swapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reloadVersionRef = useRef(0);
 
   const reload = useCallback(async () => {
+    const version = ++reloadVersionRef.current;
     const sb = supabaseBrowser();
     const id = idRef.current;
     const [m, p] = await Promise.all([
@@ -59,18 +68,43 @@ export function useMatch(initial: Match) {
         .order("slot", { ascending: true }),
     ]);
     if (m.error || p.error) throw m.error ?? p.error;
+    if (version !== reloadVersionRef.current) return;
     if (!m.data) {
       setStatus("gone"); // se borró mientras lo mirábamos
       return;
     }
     setIsAdmin(m.data.created_by === uidRef.current);
+    const hadLoaded = initializedRef.current;
+    const newIds = hadLoaded
+      ? p.data.filter((row) => !playerIdsRef.current.has(row.id)).map((row) => row.id)
+      : [];
+    initializedRef.current = true;
     playerIdsRef.current = new Set(p.data.map((row) => row.id));
-    setMatch({
+    const nextMatch: Match = {
       ...m.data,
       format: m.data.format as Format,
       layout: m.data.layout as Layout | null,
       players: p.data.map((row) => ({ ...row, team: row.team as Team })),
-    });
+    };
+    const moves = hadLoaded ? detectSwap(matchRef.current, nextMatch) : [];
+    matchRef.current = nextMatch;
+    setMatch(nextMatch);
+    if (moves.length) {
+      if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
+      setSwapMoves(moves);
+      swapTimerRef.current = setTimeout(() => {
+        setSwapMoves([]);
+        swapTimerRef.current = null;
+      }, 700);
+    }
+    if (newIds.length) {
+      setArrivingIds((current) => [...new Set([...current, ...newIds])]);
+      for (const id of newIds) {
+        arrivalTimersRef.current.push(setTimeout(() => {
+          setArrivingIds((current) => current.filter((value) => value !== id));
+        }, 1350));
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -169,10 +203,14 @@ export function useMatch(initial: Match) {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
       if (channel) sb.removeChannel(channel);
+      for (const arrivalTimer of arrivalTimersRef.current) clearTimeout(arrivalTimer);
+      arrivalTimersRef.current = [];
+      if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
+      swapTimerRef.current = null;
     };
   }, [reload]);
 
   const me: Player | null = uid ? (match.players.find((p) => p.user_id === uid) ?? null) : null;
 
-  return { match, uid, me, isAdmin, status, live, reload };
+  return { match, uid, me, isAdmin, status, live, arrivingIds, swapMoves, reload };
 }

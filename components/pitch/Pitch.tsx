@@ -1,5 +1,6 @@
 import { forwardRef, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import { cx } from "@/lib/cx";
+import type { EntryBump } from "@/lib/domain/entry";
 import type { Point } from "@/lib/domain/positions";
 
 /**
@@ -73,10 +74,29 @@ export const Pitch = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement> &
 );
 
 /** Posiciona a su hijo en un punto canónico de la cancha (ver .pitch-spot). */
-export function PitchSpot({ point, z = 1, children }: { point: Point; z?: number; children: ReactNode }) {
-  const style = { "--x": point.x, "--y": point.y, zIndex: z } as CSSProperties;
+export function PitchSpot({ point, z = 1, arriving, bend, bump, swapFrom, children }: {
+  point: Point;
+  z?: number;
+  arriving?: boolean;
+  bend?: Point;
+  bump?: EntryBump;
+  swapFrom?: Point;
+  children: ReactNode;
+}) {
+  const style = {
+    "--x": point.x,
+    "--y": point.y,
+    "--entry-mid-x": bend?.x ?? 50 + (point.x - 50) * 0.55,
+    "--entry-mid-y": bend?.y ?? 50 + (point.y - 50) * 0.55,
+    "--bump-x": bump?.x ?? 0,
+    "--bump-y": bump?.y ?? 0,
+    "--swap-x": swapFrom?.x ?? point.x,
+    "--swap-y": swapFrom?.y ?? point.y,
+    animationDelay: bump ? `${bump.delayMs}ms` : undefined,
+    zIndex: z,
+  } as CSSProperties;
   return (
-    <div className="pitch-spot" style={style}>
+    <div className={cx("pitch-spot", arriving && "pitch-spot-arriving", bump && "pitch-spot-bumped", swapFrom && "pitch-spot-swapping")} style={style}>
       {children}
     </div>
   );

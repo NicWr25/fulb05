@@ -88,17 +88,20 @@ describe("Realtime", () => {
     // que los eventos llegan a quien corresponde, no la latencia del primero.
     let rowId: string | null = null;
     for (let attempt = 0; attempt < 5 && !rowId; attempt++) {
-      const { data: row, error } = await admin.sb
-        .from("match_players")
-        .insert({ match_id: matchId, user_id: null, name: `Invitado ${attempt}`, team: "A", slot: null as unknown as number })
-        .select("id")
-        .single();
+      const { data: row, error } = await admin.sb.rpc("join_match", {
+        p_match_id: matchId, p_team: "A", p_name: `Invitado ${attempt}`,
+        p_alias: "", p_x: 20 + attempt, p_y: 50, p_guest: true,
+      });
       expect(error).toBeNull();
       const received = await waitFor(() => v.events.some((e) => e.kind === "filtered" && e.type === "INSERT"), 3000);
-      if (received) rowId = row!.id;
-      else await admin.sb.from("match_players").delete().eq("id", row!.id);
+      const id = (row as { id: string }).id;
+      if (received) rowId = id;
+      else await admin.sb.from("match_players").delete().eq("id", id);
     }
     expect(rowId, "el viewer nunca recibió un INSERT").not.toBeNull();
+
+    const { data: saved } = await viewer.sb.from("matches").select("layout").eq("id", matchId).single();
+    expect((saved!.layout as { A: { x: number; y: number }[] }).A[0].x).toBeGreaterThanOrEqual(20);
 
     await admin.sb.from("match_players").delete().eq("id", rowId!);
     expect(await waitFor(() => v.events.some((e) => e.kind === "unfiltered" && e.old.id === rowId))).toBe(true);
@@ -120,4 +123,46 @@ describe("Realtime", () => {
     // sin filtro, pero solo es un UUID sin datos.
     expect(s.events.filter((e) => e.type !== "DELETE")).toEqual([]);
   }, 40_000); // peor caso: 5 reintentos de 3 s + la espera del DELETE
+
+  it("ambas sesiones reciben el intercambio de dos jugadores", async () => {
+    const { data: first, error: firstError } = await admin.sb.rpc("join_match", {
+      p_match_id: matchId, p_team: "A", p_name: "Ana",
+      p_alias: "", p_x: 20, p_y: 50, p_guest: false,
+    });
+    const { data: second, error: secondError } = await viewer.sb.rpc("join_match", {
+      p_match_id: matchId, p_team: "B", p_name: "Bruno",
+      p_alias: "", p_x: 80, p_y: 50, p_guest: false,
+    });
+    expect(firstError).toBeNull();
+    expect(secondError).toBeNull();
+    const firstId = (first as { id: string }).id;
+    const secondId = (second as { id: string }).id;
+    const [a, v] = await Promise.all([listen(admin.sb, matchId), listen(viewer.sb, matchId)]);
+
+    let attempts = 0;
+    let received = false;
+    while (attempts < 4 && !received) {
+      attempts++;
+      const { error } = await admin.sb.rpc("swap_players", {
+        p_match_id: matchId, p_first_player_id: firstId, p_second_player_id: secondId,
+      });
+      expect(error).toBeNull();
+      received = await waitFor(() => [a, v].every((listener) =>
+        listener.events.filter((event) => event.kind === "filtered" && event.type === "UPDATE").length >= 2,
+      ), 3000);
+    }
+    expect(received, "una sesión no recibió los UPDATE del intercambio").toBe(true);
+
+    const [adminRows, viewerRows] = await Promise.all([
+      admin.sb.from("match_players").select("id,team,slot").eq("match_id", matchId),
+      viewer.sb.from("match_players").select("id,team,slot").eq("match_id", matchId),
+    ]);
+    expect(adminRows.error).toBeNull();
+    expect(viewerRows.data).toEqual(adminRows.data);
+    const team = attempts % 2 ? "B" : "A";
+    expect(adminRows.data?.find((row) => row.id === firstId)?.team).toBe(team);
+    expect(adminRows.data?.find((row) => row.id === secondId)?.team).toBe(team === "B" ? "A" : "B");
+    a.stop();
+    v.stop();
+  }, 40_000);
 });

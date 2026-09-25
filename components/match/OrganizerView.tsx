@@ -18,6 +18,7 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 import type { MatchState } from "@/lib/hooks/useMatch";
 import { formatMatchDate, toLocalInputs } from "@/lib/domain/datetime";
 import { errorMessage } from "@/lib/domain/errors";
+import { entryDestination } from "@/lib/domain/entry";
 import {
   hasNameInTeam,
   missingCount,
@@ -56,8 +57,8 @@ export function OrganizerView({
   closed: boolean;
   shareHref: string;
 }) {
-  const { match, me, status, reload } = state;
-  const [selected, setSelected] = useState<SlotRef | null>(null);
+  const { match, me, status, arrivingIds, swapMoves, reload } = state;
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [alias, setAlias] = useState("");
   const [editedAlias, setEditedAlias] = useState("");
@@ -70,13 +71,8 @@ export function OrganizerView({
   const sb = supabaseBrowser();
   const slots = slotsByTeam(match);
   const ready = status === "ready";
-  const current =
-    selected &&
-    selected.slot < match.format &&
-    slots[selected.team][selected.slot]?.id !== me?.id
-      ? selected
-      : null;
-  const occupant = current ? slots[current.team][current.slot] : null;
+  const occupant = match.players.find((player) => player.id === selectedId) ?? null;
+  const current: SlotRef | null = occupant ? { team: occupant.team, slot: occupant.slot } : null;
   const managedPlayer = occupant ?? me;
   const teamFull = (t: Team) => slots[t].every(Boolean);
   const targetTeam = current ? current.team : team;
@@ -122,42 +118,52 @@ export function OrganizerView({
 
   // --- Acciones -------------------------------------------------------------
   function select(ref: SlotRef) {
+    if (busy || !ready) return;
     setError(null);
-    const same = current?.team === ref.team && current.slot === ref.slot;
-    setSelected(same ? null : ref);
+    const target = slots[ref.team][ref.slot];
+    if (!target) return;
+    if (occupant && occupant.id !== target.id && occupant.team !== target.team) {
+      void swapPlayers(occupant, target);
+      return;
+    }
+    setSelectedId(occupant?.id === target.id ? null : target.id);
     setTeam(ref.team);
+  }
+
+  async function swapPlayers(first: Player, second: Player) {
+    const ok = await run(() => sb.rpc("swap_players", {
+      p_match_id: match.id,
+      p_first_player_id: first.id,
+      p_second_player_id: second.id,
+    }));
+    if (ok) setSelectedId(null);
   }
 
   function chooseTeam(t: Team) {
     setTeam(t);
-    if (current && current.team !== t) setSelected(null);
-  }
-
-  /** Destino de un alta: el lugar elegido si está libre; si no, primer libre. */
-  function target() {
-    return {
-      team: targetTeam,
-      slot: current && !occupant ? current.slot : (null as unknown as number),
-    };
+    if (current && current.team !== t) setSelectedId(null);
   }
 
   async function addPlayer() {
     setTried(true);
     if (playerNameError(name) || playerAliasError(alias)) return;
+    const point = entryDestination(match, targetTeam);
     const ok = await run(() =>
-      sb.from("match_players").insert({
-        match_id: match.id,
-        user_id: null,
-        name: name.trim(),
-        alias: alias.trim() || null,
-        ...target(),
+      sb.rpc("join_match", {
+        p_match_id: match.id,
+        p_team: targetTeam,
+        p_name: name.trim(),
+        p_alias: alias.trim(),
+        p_x: point.x,
+        p_y: point.y,
+        p_guest: true,
       }),
     );
     if (ok) {
       setName("");
       setAlias("");
       setTried(false);
-      setSelected(null);
+      setSelectedId(null);
     }
   }
 
@@ -179,7 +185,7 @@ export function OrganizerView({
     const ok = await run(() =>
       sb.from("match_players").delete().eq("id", p.id),
     );
-    if (ok) setSelected(null);
+    if (ok) setSelectedId(null);
   }
 
   async function changePlayerTeam(player: Player, next: Team) {
@@ -191,12 +197,12 @@ export function OrganizerView({
         p_team: next,
       }),
     );
-    if (ok) setSelected(null);
+    if (ok) setSelectedId(null);
   }
 
   async function changeFormat(f: Format) {
     if (f === match.format) return;
-    setSelected(null);
+    setSelectedId(null);
     await run(() => sb.rpc("update_match", { ...details(), p_format: f }));
   }
 
@@ -237,12 +243,10 @@ export function OrganizerView({
   const title = matchTitle(match.title, match.organizer_name);
   const missing = missingCount(match);
 
-  let hint = "Sin lugar elegido: primer lugar libre del equipo.";
-  if (current && !occupant)
-    hint = `Va al lugar ${current.slot + 1} en ${TEAM_IN[current.team]}.`;
-  else if (current && occupant)
+  let hint = "Le asignamos el primer lugar libre del equipo.";
+  if (current && occupant)
     hint = `Ahí ya juega ${occupant.name}. Tocá su ficha para administrar su equipo.`;
-  if ((!current || occupant) && teamFull(targetTeam))
+  if (teamFull(targetTeam))
     hint = `${TEAM_IN[targetTeam][0].toUpperCase() + TEAM_IN[targetTeam].slice(1)} está completo.`;
 
   const card = closed ? (
@@ -285,9 +289,7 @@ export function OrganizerView({
       placeholder="Nombre del jugador"
       submitLabel={!ready ? "Conectando…" : "+ Agregar"}
       busy={busy}
-      disabled={
-        !ready || Boolean((!current || occupant) && teamFull(targetTeam))
-      }
+      disabled={!ready || teamFull(targetTeam)}
       onSubmit={addPlayer}
     />
   );
@@ -409,12 +411,15 @@ export function OrganizerView({
             <MatchPitch
               match={match}
               meId={me?.id}
+              arrivingIds={arrivingIds}
+              swapMoves={swapMoves}
               selected={current}
-              canDrag={(_, player) => !closed && Boolean(player)}
-              canSelect={(_, player) => !closed && player?.id !== me?.id}
+              canDrag={() => !closed}
+              canSelect={() => !closed}
               onSelect={select}
-              onClearSelection={() => setSelected(null)}
+              onClearSelection={() => setSelectedId(null)}
               onMove={moveToken}
+              disabled={!ready || busy}
             />
             <details className="text-13 text-ink-2">
               <summary className="min-h-11 cursor-pointer font-semibold">
@@ -437,7 +442,8 @@ export function OrganizerView({
             <p className="text-13 leading-[1.45] text-ink-2 lg:flex lg:gap-5">
               <span>
                 Arrastrá cualquier ficha dentro de su mitad. Tocá una ficha
-                ajena para administrarla.
+                para administrarla. Tocá después una del otro equipo para
+                intercambiar a los jugadores.
               </span>
             </p>
             {error && closed && (

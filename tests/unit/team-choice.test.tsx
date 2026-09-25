@@ -21,10 +21,10 @@ describe("selector de equipo y etiquetas de cancha", () => {
     expect(html).toContain("lg:top-full");
   });
 
-  it("no dibuja un segundo anillo sobre la ficha propia", () => {
+  it("marca claramente la ficha propia cuando el organizador la selecciona", () => {
     const html = renderToStaticMarkup(<PlayerToken team="B" text="NI"
       playerName="Nico" mine selected aria-label="Tu ficha" />);
     expect(html).toContain("border-gold");
-    expect(html).not.toContain("shadow-token-sel");
+    expect(html).toContain("shadow-token-sel");
   });
 });

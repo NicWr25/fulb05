@@ -4,10 +4,10 @@ import { TEAM_TOKEN_CLASS, type Team } from "@/lib/domain/teams";
 
 export type PlayerTokenProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "name"> & {
   team: Team;
-  /** Texto dentro de la ficha: iniciales (ocupado) o número (libre). */
+  /** Iniciales dentro de la ficha. */
   text: string;
-  /** Nombre para la etiqueta de abajo; si no hay, es un lugar libre. */
-  playerName?: string | null;
+  /** Nombre para la etiqueta de abajo. */
+  playerName: string;
   tagAboveMobile?: boolean;
   "aria-label": string;
   mine?: boolean;
@@ -21,9 +21,8 @@ export type PlayerTokenProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "ch
 /**
  * Ficha de la cancha: 44px en celular (mínimo táctil) y 48px en escritorio.
  *
- * Diferencia de accesibilidad con el diseño: el lugar LIBRE usaba un velo
- * blanco al 14% (texto blanco a ~3,8:1, y ~3,3:1 seleccionado). Se reemplaza
- * por un velo negro al 18% (~6,7:1); el anillo dorado sigue marcando la selección.
+ * Solo representa jugadores anotados; la ocupación y los lugares libres se
+ * muestran con remeras fuera de la cancha.
  */
 export function PlayerToken({
   team,
@@ -39,18 +38,15 @@ export function PlayerToken({
   type = "button",
   ...rest
 }: PlayerTokenProps) {
-  const filled = Boolean(playerName);
-
   const circle = cx(
     "flex size-11 items-center justify-center rounded-full font-semibold tracking-[0.02em] lg:size-12",
-    filled
-      ? cx(TEAM_TOKEN_CLASS[team], "text-15 lg:text-16", mine ? "border-[3px] border-gold" : "border-2 border-white")
-      : "border-2 border-dashed border-white/85 bg-black/18 text-11 text-white lg:text-12",
-    dragging ? "shadow-token-drag" : selected && !mine ? "shadow-token-sel" : "shadow-token",
+    TEAM_TOKEN_CLASS[team], "text-15 lg:text-16",
+    mine ? "border-[3px] border-gold" : "border-2 border-white",
+    dragging ? "shadow-token-drag" : selected ? "shadow-token-sel" : "shadow-token",
     draggable && (dragging ? "cursor-grabbing touch-none" : "cursor-grab touch-none"),
   );
 
-  const tag = filled && (
+  const tag = (
     <span
       aria-hidden="true"
       className={cx(
