@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   isValidMapsUrl,
+  mapsUrlFromPlace,
   normalizeMapsUrl,
   venueFromMapsUrl,
+  venueName,
   playerNameError,
   validateMatchInput,
   type CreateMatchInput,
@@ -35,7 +37,6 @@ describe("validateMatchInput", () => {
   });
 
   it("respeta los largos máximos de la base", () => {
-    expect(validateMatchInput({ ...OK, venue: "x".repeat(81) }, NOW).venue).toBeDefined();
     expect(validateMatchInput({ ...OK, title: "x".repeat(61) }, NOW).title).toBeDefined();
     expect(validateMatchInput({ ...OK, organizerName: "x".repeat(25) }, NOW).organizerName).toBeDefined();
   });
@@ -65,6 +66,33 @@ describe("enlaces de Google Maps", () => {
 it("extrae el nombre de enlaces largos y deja los cortos sin nombre", () => {
   expect(venueFromMapsUrl("https://www.google.com/maps/place/Cancha+Parque/@-34,56")).toBe("Cancha Parque");
   expect(venueFromMapsUrl("https://maps.app.goo.gl/abc")).toBeNull();
+});
+
+describe("mapsUrlFromPlace", () => {
+  it("arma un enlace de Maps URLs que pasa el mismo CHECK que uno pegado", () => {
+    const url = mapsUrlFromPlace({ placeId: "ChIJ-abc_123", name: "Complejo Élite & Fútbol 5" });
+    expect(url).toBe(
+      "https://www.google.com/maps/search/?api=1&query=Complejo+%C3%89lite+%26+F%C3%BAtbol+5&query_place_id=ChIJ-abc_123",
+    );
+    expect(isValidMapsUrl(url)).toBe(true);
+  });
+
+  it("recorta nombres largos para no pasar el límite de la base", () => {
+    const url = mapsUrlFromPlace({ placeId: "x".repeat(200), name: "Ñ".repeat(500) });
+    expect(isValidMapsUrl(url)).toBe(true);
+  });
+});
+
+describe("venueName", () => {
+  it("limpia el nombre que viene de Google o del enlace para que cumpla el CHECK", () => {
+    expect(venueName("  Estadio\nCentenario  ")).toBe("Estadio Centenario");
+    expect(Array.from(venueName("⚽".repeat(100))!)).toHaveLength(80);
+  });
+
+  it("devuelve null si no queda nada", () => {
+    expect(venueName("   ")).toBeNull();
+    expect(venueName(null)).toBeNull();
+  });
 });
 
 describe("playerNameError", () => {

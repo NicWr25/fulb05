@@ -283,3 +283,35 @@
     }
   }
 }
+
+/*
+ * Buscador de Google Maps (<gmp-place-autocomplete>, ver MapsField.tsx).
+ * Vive en shadow DOM: solo se puede estilizar con propiedades heredadas y
+ * con las ::part que Google expone. Se imita a TextField.
+ */
+@layer components {
+  .maps-search gmp-place-autocomplete {
+    display: block;
+    width: 100%;
+    color-scheme: light; /* la app no tiene modo oscuro */
+    background-color: var(--color-field);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-field);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 16px; /* con menos, iOS hace zoom al enfocar */
+  }
+  .maps-search-error gmp-place-autocomplete {
+    border: 2px solid var(--color-danger);
+  }
+  .maps-search gmp-place-autocomplete::part(focus-ring) {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  .maps-search gmp-place-autocomplete::part(prediction-item-main-text) {
+    color: var(--color-ink);
+  }
+  .maps-search gmp-place-autocomplete::part(prediction-item-secondary-text) {
+    color: var(--color-ink-2);
+  }
+}

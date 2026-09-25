@@ -56,7 +56,7 @@ export type CreateMatchInput = {
   organizerName: string;
 };
 
-export type CreateMatchErrors = Partial<Record<"title" | "date" | "time" | "venue" | "mapsUrl" | "organizerName", string>>;
+export type CreateMatchErrors = Partial<Record<"title" | "date" | "time" | "mapsUrl" | "organizerName", string>>;
 
 /**
  * Valida el formulario de crear/editar partido. `now` se inyecta para poder
@@ -65,7 +65,6 @@ export type CreateMatchErrors = Partial<Record<"title" | "date" | "time" | "venu
 export function validateMatchInput(input: CreateMatchInput, now: Date = new Date()): CreateMatchErrors {
   const e: CreateMatchErrors = {};
   const title = input.title.trim();
-  const venue = input.venue.trim();
 
   if (title.length > LIMITS.title) e.title = `Hasta ${LIMITS.title} letras.`;
   else if (CONTROL.test(title)) e.title = "El nombre tiene caracteres raros.";
@@ -80,9 +79,6 @@ export function validateMatchInput(input: CreateMatchInput, now: Date = new Date
     else if (when.getTime() - now.getTime() > 365 * 24 * 3600 * 1000) e.date = "Como mucho, dentro de un año.";
   }
 
-  if (venue.length > LIMITS.venue) e.venue = `Hasta ${LIMITS.venue} letras.`;
-  else if (CONTROL.test(venue)) e.venue = "El nombre tiene caracteres raros.";
-
   const maps = normalizeMapsUrl(input.mapsUrl);
   if (!maps) e.mapsUrl = "Pegá el enlace de Google Maps.";
   else if (!isValidMapsUrl(maps)) e.mapsUrl = "Ese enlace no parece de Google Maps.";
@@ -93,14 +89,47 @@ export function validateMatchInput(input: CreateMatchInput, now: Date = new Date
   return e;
 }
 
+/**
+ * Enlace de Google Maps para un lugar elegido en el buscador. Usa el formato
+ * público "Maps URLs" (no necesita key ni cobra): `query_place_id` apunta al
+ * lugar exacto y `query` es el texto de respaldo si el id dejara de existir.
+ * El resultado cumple el mismo CHECK que un enlace pegado a mano: si el
+ * nombre codificado lo haría pasar de 500 caracteres, se acorta el nombre
+ * (por caracteres completos, para no cortar un emoji a la mitad).
+ */
+export function mapsUrlFromPlace(place: { placeId: string; name: string }): string {
+  let chars = Array.from(place.name.trim()).slice(0, LIMITS.venue);
+  for (;;) {
+    const params = new URLSearchParams({
+      api: "1",
+      query: chars.join(""),
+      query_place_id: place.placeId,
+    });
+    const url = `https://www.google.com/maps/search/?${params}`;
+    if (url.length <= LIMITS.mapsUrl || chars.length === 0) return url;
+    chars = chars.slice(0, -1);
+  }
+}
+
+/**
+ * Nombre de la cancha a partir del lugar elegido. Ya no se escribe a mano:
+ * sale de Google (o del enlace pegado), así que se limpia para que siempre
+ * cumpla el CHECK de la base (sin caracteres de control, hasta 80).
+ * null = sin nombre (la UI muestra "Ver ubicación").
+ */
+export function venueName(raw: string | null | undefined): string | null {
+  const clean = (raw ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
+  const name = Array.from(clean).slice(0, LIMITS.venue).join("").trim();
+  return name || null;
+}
+
 /** Solo los enlaces largos /maps/place/ incluyen un nombre legible localmente. */
 export function venueFromMapsUrl(raw: string): string | null {
   try {
     const url = new URL(normalizeMapsUrl(raw));
     const match = url.pathname.match(/\/maps\/place\/([^/]+)/i);
     if (!match) return null;
-    const name = decodeURIComponent(match[1].replace(/\+/g, " ")).trim();
-    return name && name.length <= LIMITS.venue ? name : null;
+    return venueName(decodeURIComponent(match[1].replace(/\+/g, " ")));
   } catch {
     return null;
   }

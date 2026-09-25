@@ -9,7 +9,8 @@ import { MapsLink } from "@/components/ui/MapsLink";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { SuccessMark } from "@/components/ui/SuccessMark";
 import { TextField } from "@/components/ui/TextField";
-import { PinIcon, WhatsAppIcon } from "@/components/ui/icons";
+import { WhatsAppIcon } from "@/components/ui/icons";
+import { MapsField } from "@/components/create/MapsField";
 import { ensureSession, supabaseBrowser } from "@/lib/supabase/browser";
 import { browserTimeZone } from "@/lib/domain/datetime";
 import { errorMessage } from "@/lib/domain/errors";
@@ -22,7 +23,6 @@ import {
   LIMITS,
   normalizeMapsUrl,
   validateMatchInput,
-  venueFromMapsUrl,
   type CreateMatchInput,
 } from "@/lib/domain/validation";
 
@@ -145,31 +145,10 @@ export function CreateMatchForm() {
           />
         </div>
 
-        <TextField
-          label="Cancha"
-          labelNote="(opcional)"
-          autoComplete="off"
-          placeholder="Nombre de la cancha"
-          maxLength={LIMITS.venue}
-          value={input.venue}
-          onChange={(e) => set("venue")(e.target.value)}
-          error={show("venue")}
-        />
-
-        <TextField
-          label="Ubicación en Google Maps"
-          type="url"
-          inputMode="url"
-          autoComplete="off"
-          placeholder="Pegá el enlace de la cancha"
-          icon={<PinIcon />}
+        <MapsField
           value={input.mapsUrl}
-          onChange={(e) => {
-            const value = e.target.value;
-            setInput((old) => ({ ...old, mapsUrl: value, venue: old.venue || venueFromMapsUrl(value) || "" }));
-          }}
+          onChange={(mapsUrl, venue) => setInput((old) => ({ ...old, mapsUrl, venue: venue ?? "" }))}
           error={show("mapsUrl")}
-          hint="En Google Maps buscá la cancha, tocá Compartir y copiá el enlace. Así los jugadores ven cómo llegar."
         />
 
         <div className="h-px bg-sand" />

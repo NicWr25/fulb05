@@ -3,11 +3,12 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
-import { PinIcon, XIcon } from "@/components/ui/icons";
+import { XIcon } from "@/components/ui/icons";
+import { MapsField } from "@/components/create/MapsField";
 import { toLocalInputs } from "@/lib/domain/datetime";
 import { errorMessage } from "@/lib/domain/errors";
 import type { Match } from "@/lib/domain/match";
-import { LIMITS, normalizeMapsUrl, validateMatchInput, venueFromMapsUrl, type CreateMatchInput } from "@/lib/domain/validation";
+import { LIMITS, normalizeMapsUrl, validateMatchInput, type CreateMatchInput } from "@/lib/domain/validation";
 
 type Fields = Omit<CreateMatchInput, "format" | "title">;
 
@@ -67,7 +68,7 @@ export function useEditMatchDialog(
   }
 
   const set = (k: keyof Fields) => (v: string) => setFields((f) => (f ? { ...f, [k]: v } : f));
-  const show = (k: keyof Fields) => (tried ? errors[k] : undefined);
+  const show = (k: keyof typeof errors) => (tried ? errors[k] : undefined);
 
   const dialog = (
     <dialog
@@ -94,21 +95,10 @@ export function useEditMatchDialog(
             <TextField label="Día" type="date" value={fields.date} onChange={(e) => set("date")(e.target.value)} error={show("date")} />
             <TextField label="Hora" type="time" value={fields.time} onChange={(e) => set("time")(e.target.value)} error={show("time")} />
           </div>
-          <TextField
-            label="Cancha"
-            labelNote="(opcional)"
-            maxLength={LIMITS.venue}
-            value={fields.venue}
-            onChange={(e) => set("venue")(e.target.value)}
-            error={show("venue")}
-          />
-          <TextField
-            label="Ubicación en Google Maps"
-            type="url"
-            inputMode="url"
-            icon={<PinIcon />}
+          <MapsField
             value={fields.mapsUrl}
-            onChange={(e) => setFields((old) => old ? { ...old, mapsUrl: e.target.value, venue: old.venue || venueFromMapsUrl(e.target.value) || "" } : old)}
+            venue={fields.venue}
+            onChange={(mapsUrl, venue) => setFields((old) => (old ? { ...old, mapsUrl, venue: venue ?? "" } : old))}
             error={show("mapsUrl")}
           />
           <TextField
