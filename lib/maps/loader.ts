@@ -82,9 +82,13 @@ export const mapsEnabled = Boolean(KEY);
 
 /**
  * Los marcadores modernos (AdvancedMarkerElement) exigen un "Map ID" creado
- * en Google Cloud. DEMO_MAP_ID es el que Google ofrece para desarrollo.
+ * en Google Cloud (el marcador clásico, que no lo pide, está deprecado).
+ * No es un secreto ni una credencial: identifica una configuración de mapa
+ * (ej. un estilo), así que va como constante y no como variable de entorno.
+ * Es el ID "fulb05-organizador" (JavaScript, vectorial) del proyecto de
+ * Google Cloud.
  */
-const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || "DEMO_MAP_ID";
+const MAP_ID = "ee5d40e05aea28f56e19d9b9";
 
 let loading: Promise<void> | null = null;
 let authFailed = false;
